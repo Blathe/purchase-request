@@ -41,10 +41,15 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddCascadingAuthenticationState();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Blazor Server components create a short-lived DbContext per operation from the factory.
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<UserSyncService>();
+builder.Services.AddScoped<CurrentUserService>();
+builder.Services.AddScoped<RequestService>();
+builder.Services.AddSingleton<IRequestNumberGenerator, SqlRequestNumberGenerator>();
 
 var app = builder.Build();
 

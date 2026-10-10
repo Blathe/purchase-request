@@ -1,0 +1,16 @@
+@if (Access == AccessResult.Denied)
+{
+    <h1>Access denied</h1>
+    <p>You do not have permission to view this request.</p>
+}
+else if (Access == AccessResult.NotFound)
+{
+    <h1>Request not found</h1>
+    <p>This request does not exist.</p>
+}
+<p><a href="requests">Back to my requests</a></p>
+
+@code {
+    [Parameter, EditorRequired]
+    public AccessResult Access { get; set; }
+}

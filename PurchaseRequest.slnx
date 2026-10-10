@@ -1,3 +1,6 @@
 <Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/PurchaseRequest.Tests/PurchaseRequest.Tests.csproj" />
+  </Folder>
   <Project Path="PurchaseRequest/PurchaseRequest.csproj" />
 </Solution>

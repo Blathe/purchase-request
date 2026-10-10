@@ -1,0 +1,57 @@
+@page "/requests"
+@inject CurrentUserService CurrentUser
+@inject RequestService RequestService
+
+<PageTitle>My requests</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">My requests</h1>
+    <a class="btn btn-primary" href="requests/new">New request</a>
+</div>
+
+@if (requests is null)
+{
+    <p>Loading…</p>
+}
+else if (requests.Count == 0)
+{
+    <p>You have no requests yet. <a href="requests/new">Create your first request</a>.</p>
+}
+else
+{
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Number</th>
+                <th>Created</th>
+                <th>Vendor</th>
+                <th>Category</th>
+                <th class="text-end">Total</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var request in requests)
+            {
+                <tr>
+                    <td><a href="requests/@request.Id">@request.Number</a></td>
+                    <td>@Format.Date(request.CreatedAt)</td>
+                    <td>@request.Vendor</td>
+                    <td>@request.Category.Name</td>
+                    <td class="text-end">@Format.Money(request.Total)</td>
+                    <td><StatusBadge Status="request.Status" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Request>? requests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await CurrentUser.GetAsync();
+        requests = await RequestService.GetMyRequestsAsync(user.Id);
+    }
+}

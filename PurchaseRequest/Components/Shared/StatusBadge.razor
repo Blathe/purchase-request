@@ -1,0 +1,17 @@
+<span class="badge @CssClass">@Format.Status(Status)</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public RequestStatus Status { get; set; }
+
+    private string CssClass => Status switch
+    {
+        RequestStatus.Draft => "text-bg-secondary",
+        RequestStatus.PendingApproval => "text-bg-warning",
+        RequestStatus.Approved => "text-bg-success",
+        RequestStatus.Ordered => "text-bg-info",
+        RequestStatus.Received => "text-bg-primary",
+        RequestStatus.Rejected => "text-bg-danger",
+        _ => "text-bg-light"
+    };
+}

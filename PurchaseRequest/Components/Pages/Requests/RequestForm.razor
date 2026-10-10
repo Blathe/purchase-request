@@ -1,0 +1,234 @@
+@page "/requests/new"
+@page "/requests/{Id:int}/edit"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@implements IDisposable
+@inject CurrentUserService CurrentUser
+@inject RequestService RequestService
+@inject NavigationManager Navigation
+
+<PageTitle>@(Id is null ? "New request" : $"Edit {number}")</PageTitle>
+
+@if (access != AccessResult.Allowed)
+{
+    <AccessMessage Access="access" />
+}
+else if (editContext is null || categories is null)
+{
+    <p>Loading…</p>
+}
+else if (!editable)
+{
+    <h1>@number</h1>
+    <p>This request has been submitted and can no longer be edited.</p>
+    <p><a href="requests/@Id">View request</a></p>
+}
+else
+{
+    <h1>@(Id is null ? "New request" : $"Edit {number}")</h1>
+
+    <EditForm EditContext="editContext" OnValidSubmit="SaveAsync" FormName="request-form">
+        <DataAnnotationsValidator />
+
+        @if (errorMessage is not null)
+        {
+            <div class="alert alert-danger" role="alert">@errorMessage</div>
+        }
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label for="vendor" class="form-label">Vendor</label>
+                <InputText id="vendor" class="form-control" @bind-Value="model.Vendor" />
+                <ValidationMessage For="() => model.Vendor" />
+            </div>
+            <div class="col-md-3">
+                <label for="category" class="form-label">Category</label>
+                <InputSelect id="category" class="form-select" @bind-Value="model.CategoryId">
+                    <option value="0">Choose…</option>
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id">@category.Name@(category.RequiresItApproval ? " (needs IT approval)" : "")</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => model.CategoryId" />
+            </div>
+            <div class="col-md-3">
+                <label for="needed-by" class="form-label">Needed by <span class="text-muted">(optional)</span></label>
+                <InputDate id="needed-by" class="form-control" @bind-Value="model.NeededBy" />
+            </div>
+            <div class="col-12">
+                <label for="justification" class="form-label">Justification</label>
+                <InputTextArea id="justification" class="form-control" rows="3" @bind-Value="model.Justification" />
+                <ValidationMessage For="() => model.Justification" />
+            </div>
+        </div>
+
+        <h2 class="h5">Line items</h2>
+        <table class="table align-top">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th style="width: 7rem">Quantity</th>
+                    <th style="width: 10rem">Unit price</th>
+                    <th>Link <span class="text-muted fw-normal">(optional)</span></th>
+                    <th class="text-end" style="width: 9rem">Line total</th>
+                    <th style="width: 3rem"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < model.LineItems.Count; i++)
+                {
+                    var line = model.LineItems[i];
+                    var row = i + 1;
+                    <tr @key="line">
+                        <td>
+                            <InputText class="form-control" aria-label="@($"Line {row} description")" @bind-Value="line.Description" />
+                            <ValidationMessage For="() => line.Description" />
+                        </td>
+                        <td>
+                            <InputNumber class="form-control" aria-label="@($"Line {row} quantity")" min="1" @bind-Value="line.Quantity" />
+                            <ValidationMessage For="() => line.Quantity" />
+                        </td>
+                        <td>
+                            <InputNumber class="form-control" aria-label="@($"Line {row} unit price")" min="0.01" step="0.01" @bind-Value="line.UnitPrice" />
+                            <ValidationMessage For="() => line.UnitPrice" />
+                        </td>
+                        <td>
+                            <InputText class="form-control" aria-label="@($"Line {row} link")" @bind-Value="line.Url" />
+                            <ValidationMessage For="() => line.Url" />
+                        </td>
+                        <td class="text-end pt-3">@Format.Money(line.LineTotal)</td>
+                        <td>
+                            <button type="button" class="btn btn-outline-danger btn-sm mt-1" title="Remove line @row"
+                                    aria-label="@($"Remove line {row}")"
+                                    disabled="@(model.LineItems.Count == 1)" @onclick="() => RemoveLine(line)">×</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="4">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AddLine">+ Add line</button>
+                    </td>
+                    <td class="text-end fw-bold">@Format.Money(model.Total)</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Saving…" : "Save draft")</button>
+            <a class="btn btn-outline-secondary" href="@(Id is null ? "requests" : $"requests/{Id}")">Cancel</a>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private RequestFormModel model = new();
+    private EditContext? editContext;
+    private ValidationMessageStore? lineMessages;
+    private List<Category>? categories;
+    private AccessResult access = AccessResult.Allowed;
+    private string? number;
+    private bool editable = true;
+    private bool saving;
+    private string? errorMessage;
+    private int userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userId = (await CurrentUser.GetAsync()).Id;
+        categories = await RequestService.GetActiveCategoriesAsync();
+
+        if (Id is int id)
+        {
+            var result = await RequestService.GetForViewAsync(id, userId);
+            access = result.Access;
+            if (result.Request is not { } request)
+            {
+                return;
+            }
+            number = request.Number;
+            editable = RequestService.CanEdit(request);
+            model = RequestFormModel.FromRequest(request);
+        }
+
+        editContext = new EditContext(model);
+        lineMessages = new ValidationMessageStore(editContext);
+        editContext.OnValidationRequested += ValidateLineItems;
+        editContext.OnFieldChanged += ClearLineMessage;
+    }
+
+    // DataAnnotationsValidator only checks top-level properties on submit, so line items are checked here.
+    private void ValidateLineItems(object? sender, ValidationRequestedEventArgs e)
+    {
+        lineMessages!.Clear();
+        foreach (var line in model.LineItems)
+        {
+            var results = new List<ValidationResult>();
+            Validator.TryValidateObject(line, new ValidationContext(line), results, validateAllProperties: true);
+            foreach (var result in results)
+            {
+                foreach (var member in result.MemberNames)
+                {
+                    lineMessages.Add(new FieldIdentifier(line, member), result.ErrorMessage ?? "Invalid value.");
+                }
+            }
+        }
+    }
+
+    private void ClearLineMessage(object? sender, FieldChangedEventArgs e) => lineMessages!.Clear(e.FieldIdentifier);
+
+    private void AddLine() => model.LineItems.Add(new LineItemModel());
+
+    private void RemoveLine(LineItemModel line)
+    {
+        model.LineItems.Remove(line);
+        lineMessages!.Clear();
+        editContext!.NotifyValidationStateChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        errorMessage = null;
+        try
+        {
+            if (Id is int id)
+            {
+                var result = await RequestService.UpdateDraftAsync(id, userId, model);
+                access = result.Access;
+                if (result.Access is AccessResult.Allowed)
+                {
+                    Navigation.NavigateTo($"requests/{id}");
+                }
+            }
+            else
+            {
+                var request = await RequestService.CreateDraftAsync(userId, model);
+                Navigation.NavigateTo($"requests/{request.Id}");
+            }
+        }
+        catch (Exception ex) when (ex is ValidationException or InvalidOperationException)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (editContext is not null)
+        {
+            editContext.OnValidationRequested -= ValidateLineItems;
+            editContext.OnFieldChanged -= ClearLineMessage;
+        }
+    }
+}
