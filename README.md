@@ -24,5 +24,5 @@ Written before the code. Start here:
 ## Running locally
 
 1. Install the .NET 10 SDK and SQL Server LocalDB.
-2. Set the Entra ID values: `dotnet user-secrets set "AzureAd:TenantId" "<tenant-id>"` and `dotnet user-secrets set "AzureAd:ClientId" "<client-id>"` from the `PurchaseRequest` folder.
-3. Run `dotnet ef database update`, then `dotnet run`.
+2. The Entra tenant and client IDs are in `appsettings.json`. Set the client secret from the `PurchaseRequest` folder: `dotnet user-secrets set "AzureAd:ClientSecret" "<secret>"`.
+3. Run `dotnet run --launch-profile https` and open `https://localhost:7087`.
