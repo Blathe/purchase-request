@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using PurchaseRequest.Components;
 using PurchaseRequest.Data;
+using PurchaseRequest.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,18 @@ builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddInMemoryTokenCaches();
 
+// Create or refresh the user's AppUser row each time they sign in.
+builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+{
+    var onTokenValidated = options.Events.OnTokenValidated;
+    options.Events.OnTokenValidated = async context =>
+    {
+        await onTokenValidated(context);
+        var userSync = context.HttpContext.RequestServices.GetRequiredService<UserSyncService>();
+        await userSync.SyncAsync(context.Principal!, context.HttpContext.RequestAborted);
+    };
+});
+
 // Every page requires a signed-in user unless marked [AllowAnonymous] (NFR-01).
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
@@ -31,6 +44,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+builder.Services.AddScoped<UserSyncService>();
 
 var app = builder.Build();
 
