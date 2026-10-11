@@ -1,3 +1,4 @@
+using Microsoft.FluentUI.AspNetCore.Components;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -14,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddFluentUIComponents();
 
 // Sign in with Microsoft Entra ID (FR-01). Token acquisition uses the authorization
 // code flow, which needs AzureAd:ClientSecret, and is used later for Microsoft Graph.
@@ -51,7 +53,7 @@ builder.Services.AddScoped<CurrentUserService>();
 builder.Services.AddScoped<RequestService>();
 builder.Services.AddSingleton<IRequestNumberGenerator, SqlRequestNumberGenerator>();
 builder.Services.AddScoped<ApprovalService>();
-builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<PurchaseRequest.Services.NotificationService>();
 builder.Services.AddScoped<PurchasingService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<SettingsService>();

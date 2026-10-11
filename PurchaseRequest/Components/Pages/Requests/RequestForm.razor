@@ -1,6 +1,5 @@
 @page "/requests/new"
 @page "/requests/{Id:int}/edit"
-@rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @implements IDisposable
 @inject CurrentUserService CurrentUserService
@@ -15,111 +14,79 @@
 }
 else if (editContext is null || categories is null)
 {
-    <p>Loading…</p>
+    <FluentProgressBar />
 }
 else if (!editable)
 {
-    <h1>@number</h1>
-    <p>This request has been submitted and can no longer be edited.</p>
-    <p><a href="requests/@Id">View request</a></p>
+    <PageHeader Title="@(number ?? "")" Subtitle="This request has been submitted and can no longer be edited." />
+    <FluentAnchorButton Href="@($"requests/{Id}")">View request</FluentAnchorButton>
 }
 else
 {
-    <h1>@(Id is null ? "New request" : $"Edit {number}")</h1>
+    <PageHeader Title="@(Id is null ? "New request" : $"Edit {number}")"
+                Subtitle="Save it as a draft, then submit it for approval from the request page." />
 
-    <EditForm EditContext="editContext" OnValidSubmit="SaveAsync" FormName="request-form">
+    <EditForm EditContext="editContext" OnValidSubmit="SaveAsync" FormName="request-form" class="request-form">
         <DataAnnotationsValidator />
 
         @if (errorMessage is not null)
         {
-            <div class="alert alert-danger" role="alert">@errorMessage</div>
+            <FluentMessageBar Intent="MessageBarIntent.Error" AllowDismiss="false">@errorMessage</FluentMessageBar>
         }
 
-        <div class="row g-3 mb-4">
-            <div class="col-md-6">
-                <label for="vendor" class="form-label">Vendor</label>
-                <InputText id="vendor" class="form-control" @bind-Value="model.Vendor" />
-                <ValidationMessage For="() => model.Vendor" />
+        <section class="form-section">
+            <h2 class="section-title">Details</h2>
+            <div class="form-grid">
+                <FluentTextInput Label="Vendor" Required="true" @bind-Value="model.Vendor" MaxLength="200" Class="span-2" />
+                <FluentSelect TOption="Category" TValue="int" Label="Category" Required="true" Items="@categories"
+                              Placeholder="Choose a category" @bind-Value="model.CategoryId"
+                              OptionValue="@(c => c.Id)" OptionText="@CategoryText" />
+                <FluentDatePicker TValue="DateOnly?" Label="Needed by (optional)" @bind-Value="model.NeededBy" />
+                <FluentTextArea Label="Justification" Required="true" @bind-Value="model.Justification" MaxLength="2000"
+                                Placeholder="What is this for, and why is it needed now?" Class="span-full" AutoResize="true" />
             </div>
-            <div class="col-md-3">
-                <label for="category" class="form-label">Category</label>
-                <InputSelect id="category" class="form-select" @bind-Value="model.CategoryId">
-                    <option value="0">Choose…</option>
-                    @foreach (var category in categories)
-                    {
-                        <option value="@category.Id">@category.Name@(category.RequiresItApproval ? " (needs IT approval)" : "")</option>
-                    }
-                </InputSelect>
-                <ValidationMessage For="() => model.CategoryId" />
-            </div>
-            <div class="col-md-3">
-                <label for="needed-by" class="form-label">Needed by <span class="text-muted">(optional)</span></label>
-                <InputDate id="needed-by" class="form-control" @bind-Value="model.NeededBy" />
-            </div>
-            <div class="col-12">
-                <label for="justification" class="form-label">Justification</label>
-                <InputTextArea id="justification" class="form-control" rows="3" @bind-Value="model.Justification" />
-                <ValidationMessage For="() => model.Justification" />
-            </div>
-        </div>
+        </section>
 
-        <h2 class="h5">Line items</h2>
-        <table class="table align-top">
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th style="width: 7rem">Quantity</th>
-                    <th style="width: 10rem">Unit price</th>
-                    <th>Link <span class="text-muted fw-normal">(optional)</span></th>
-                    <th class="text-end" style="width: 9rem">Line total</th>
-                    <th style="width: 3rem"></th>
-                </tr>
-            </thead>
-            <tbody>
+        <section class="form-section">
+            <h2 class="section-title">Line items</h2>
+            <div class="line-items" role="table" aria-label="Line items">
+                <div class="line-item line-item-header" role="row">
+                    <span role="columnheader">Description</span>
+                    <span role="columnheader">Quantity</span>
+                    <span role="columnheader">Unit price</span>
+                    <span role="columnheader">Link (optional)</span>
+                    <span role="columnheader" class="line-total">Line total</span>
+                    <span role="columnheader"><span class="visually-hidden">Remove</span></span>
+                </div>
                 @for (var i = 0; i < model.LineItems.Count; i++)
                 {
                     var line = model.LineItems[i];
                     var row = i + 1;
-                    <tr @key="line">
-                        <td>
-                            <InputText class="form-control" aria-label="@($"Line {row} description")" @bind-Value="line.Description" />
-                            <ValidationMessage For="() => line.Description" />
-                        </td>
-                        <td>
-                            <InputNumber class="form-control" aria-label="@($"Line {row} quantity")" min="1" @bind-Value="line.Quantity" />
-                            <ValidationMessage For="() => line.Quantity" />
-                        </td>
-                        <td>
-                            <InputNumber class="form-control" aria-label="@($"Line {row} unit price")" min="0.01" step="0.01" @bind-Value="line.UnitPrice" />
-                            <ValidationMessage For="() => line.UnitPrice" />
-                        </td>
-                        <td>
-                            <InputText class="form-control" aria-label="@($"Line {row} link")" @bind-Value="line.Url" />
-                            <ValidationMessage For="() => line.Url" />
-                        </td>
-                        <td class="text-end pt-3">@Format.Money(line.LineTotal)</td>
-                        <td>
-                            <button type="button" class="btn btn-outline-danger btn-sm mt-1" title="Remove line @row"
-                                    aria-label="@($"Remove line {row}")"
-                                    disabled="@(model.LineItems.Count == 1)" @onclick="() => RemoveLine(line)">×</button>
-                        </td>
-                    </tr>
+                    <div class="line-item" role="row" @key="line">
+                        <FluentTextInput AriaLabel="@($"Line {row} description")" @bind-Value="line.Description" MaxLength="500" />
+                        <FluentNumberInput TValue="int" AriaLabel="@($"Line {row} quantity")" @bind-Value="line.Quantity" Min="1" Immediate="true" />
+                        <FluentNumberInput TValue="decimal" AriaLabel="@($"Line {row} unit price")" @bind-Value="line.UnitPrice" Min="@(0.01m)" Immediate="true"
+                                           StartTemplate="@DollarSign" />
+                        <FluentTextInput AriaLabel="@($"Line {row} link")" @bind-Value="line.Url" TextInputType="TextInputType.Url" Placeholder="https://" />
+                        <span class="line-total" role="cell">@Format.Money(line.LineTotal)</span>
+                        <FluentButton Appearance="ButtonAppearance.Transparent" IconOnly="true" Title="@($"Remove line {row}")"
+                                      IconStart="@(new Icons.Regular.Size20.Delete())" aria-label="@($"Remove line {row}")"
+                                      Disabled="@(model.LineItems.Count == 1)" OnClick="() => RemoveLine(line)" />
+                    </div>
                 }
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="4">
-                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AddLine">+ Add line</button>
-                    </td>
-                    <td class="text-end fw-bold">@Format.Money(model.Total)</td>
-                    <td></td>
-                </tr>
-            </tfoot>
-        </table>
+            </div>
+            <div class="line-items-footer">
+                <FluentButton Appearance="ButtonAppearance.Subtle" IconStart="@(new Icons.Regular.Size20.Add())" OnClick="AddLine">Add line</FluentButton>
+                <div class="form-total" aria-live="polite">
+                    <span class="text-subtle">Total</span>
+                    <strong>@Format.Money(model.Total)</strong>
+                </div>
+            </div>
+        </section>
 
-        <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Saving…" : "Save draft")</button>
-            <a class="btn btn-outline-secondary" href="@(Id is null ? "requests" : $"requests/{Id}")">Cancel</a>
+        <div class="form-actions">
+            <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary" Loading="@saving">Save draft</FluentButton>
+            <FluentAnchorButton Href="@(Id is null ? "requests" : $"requests/{Id}")" Appearance="ButtonAppearance.Subtle">Cancel</FluentAnchorButton>
         </div>
     </EditForm>
 }
@@ -184,6 +151,11 @@ else
     }
 
     private void ClearLineMessage(object? sender, FieldChangedEventArgs e) => lineMessages!.Clear(e.FieldIdentifier);
+
+    private static readonly RenderFragment DollarSign = @<span class="text-subtle">$</span>;
+
+    private static string CategoryText(Category category) =>
+        category.RequiresItApproval ? $"{category.Name} (needs IT approval)" : category.Name;
 
     private void AddLine() => model.LineItems.Add(new LineItemModel());
 

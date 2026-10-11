@@ -4,8 +4,8 @@
             <NotAuthorized>
                 @if (context.User.Identity?.IsAuthenticated == true)
                 {
-                    <h1>Access denied</h1>
-                    <p>You do not have permission to view this page.</p>
+                    <EmptyState Title="Access denied" Message="You do not have permission to view this page."
+                                Icon="@(new Icons.Regular.Size24.LockClosed())" ActionHref="" ActionText="Go to home" />
                 }
                 else
                 {

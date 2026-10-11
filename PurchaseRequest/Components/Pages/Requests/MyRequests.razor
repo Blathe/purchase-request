@@ -4,52 +4,67 @@
 
 <PageTitle>My requests</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="mb-0">My requests</h1>
-    <a class="btn btn-primary" href="requests/new">New request</a>
-</div>
+<PageHeader Title="My requests">
+    <Actions>
+        <FluentAnchorButton Href="requests/new" Appearance="ButtonAppearance.Primary" IconStart="@(new Icons.Regular.Size20.Add())">
+            New request
+        </FluentAnchorButton>
+    </Actions>
+</PageHeader>
 
 @if (requests is null)
 {
-    <p>Loading…</p>
+    <FluentProgressBar />
 }
 else if (requests.Count == 0)
 {
-    <p>You have no requests yet. <a href="requests/new">Create your first request</a>.</p>
+    <EmptyState Title="No requests yet"
+                Message="Create a request, add what you need to buy, and submit it for approval."
+                ActionHref="requests/new" ActionText="Create a request" />
 }
 else
 {
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th>Number</th>
-                <th>Created</th>
-                <th>Vendor</th>
-                <th>Category</th>
-                <th class="text-end">Total</th>
-                <th>Status</th>
-                <th>Waiting on</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var request in requests)
-            {
-                <tr>
-                    <td><a href="requests/@request.Id">@request.Number</a></td>
-                    <td>@Format.Date(request.CreatedAt)</td>
-                    <td>@request.Vendor</td>
-                    <td>@request.Category.Name</td>
-                    <td class="text-end">@Format.Money(request.Total)</td>
-                    <td><StatusBadge Status="request.Status" /></td>
-                    <td>@(request.Status == RequestStatus.PendingApproval && ApprovalService.CurrentStep(request) is { } step ? Format.Approver(step) : "")</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <ListToolbar @bind-Search="search" Statuses="@statuses" @bind-Status="status" Count="@Filtered.Count()" />
+
+    <FluentDataGrid Items="@Filtered" TGridItem="Request" ItemKey="@(r => r.Id)" ShowHover="true"
+                    GridTemplateColumns="130px 120px 1.5fr 1fr 120px 150px 1.2fr">
+        <EmptyContent>No requests match your search.</EmptyContent>
+        <ChildContent>
+            <TemplateColumn Title="Number" SortBy="@byNumber">
+                <a href="requests/@context.Id">@context.Number</a>
+            </TemplateColumn>
+            <TemplateColumn Title="Created" SortBy="@byCreated" IsDefaultSortColumn="true" InitialSortDirection="DataGridSortDirection.Descending">
+                @Format.Date(context.CreatedAt)
+            </TemplateColumn>
+            <PropertyColumn Title="Vendor" Property="@(r => r.Vendor)" Sortable="true" />
+            <PropertyColumn Title="Category" Property="@(r => r.Category.Name)" Sortable="true" />
+            <TemplateColumn Title="Total" SortBy="@byTotal" Align="DataGridCellAlignment.End">
+                @Format.Money(context.Total)
+            </TemplateColumn>
+            <TemplateColumn Title="Status" SortBy="@byStatus">
+                <StatusBadge Status="context.Status" />
+            </TemplateColumn>
+            <TemplateColumn Title="Waiting on">
+                @(context.Status == RequestStatus.PendingApproval && ApprovalService.CurrentStep(context) is { } step ? Format.Approver(step) : "")
+            </TemplateColumn>
+        </ChildContent>
+    </FluentDataGrid>
 }
 
 @code {
+    private static readonly RequestStatus[] statuses = Enum.GetValues<RequestStatus>();
+    private static readonly GridSort<Request> byNumber = GridSort<Request>.ByAscending(r => r.Number);
+    private static readonly GridSort<Request> byCreated = GridSort<Request>.ByAscending(r => r.CreatedAt);
+    private static readonly GridSort<Request> byTotal = GridSort<Request>.ByAscending(r => r.Total);
+    private static readonly GridSort<Request> byStatus = GridSort<Request>.ByAscending(r => r.Status);
+
     private List<Request>? requests;
+    private string? search;
+    private string? status = "";
+
+    private IQueryable<Request> Filtered => (requests ?? [])
+        .Where(r => ListToolbar.Matches(search, r.Number, r.Vendor) && ListToolbar.Matches(status, r.Status))
+        .AsQueryable();
 
     protected override async Task OnInitializedAsync()
     {

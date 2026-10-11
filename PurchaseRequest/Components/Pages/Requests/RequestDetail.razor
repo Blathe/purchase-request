@@ -1,10 +1,11 @@
 @page "/requests/{Id:int}"
-@rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @inject CurrentUserService CurrentUserService
 @inject RequestService RequestService
 @inject ApprovalService ApprovalService
 @inject PurchasingService PurchasingService
+@inject IDialogService DialogService
+@inject INotificationService Toasts
 
 <PageTitle>@(request?.Number ?? "Request")</PageTitle>
 
@@ -14,182 +15,150 @@
 }
 else if (request is null)
 {
-    <p>Loading…</p>
+    <FluentProgressBar />
 }
 else
 {
     var isRequester = request.RequesterId == user.Id;
     var currentStep = ApprovalService.CurrentStep(request);
 
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h1 class="mb-0">@request.Number <StatusBadge Status="request.Status" /></h1>
-        @if (isRequester)
-        {
-            <div class="d-flex gap-2">
-                @if (RequestService.CanEdit(request))
-                {
-                    <button class="btn btn-success" disabled="@working" @onclick="SubmitAsync">Submit for approval</button>
-                    <a class="btn btn-primary" href="requests/@request.Id/edit">Edit</a>
-                }
-                @if (RequestService.CanCancel(request))
-                {
-                    @if (confirmingCancel)
-                    {
-                        <button class="btn btn-danger" disabled="@working" @onclick="CancelAsync">Yes, cancel request</button>
-                        <button class="btn btn-outline-secondary" @onclick="() => confirmingCancel = false">Keep it</button>
-                    }
-                    else
-                    {
-                        <button class="btn btn-outline-danger" @onclick="() => confirmingCancel = true">Cancel request</button>
-                    }
-                }
-            </div>
-        }
-    </div>
+    <PageHeader Title="@request.Number" Subtitle="@($"{request.Vendor} · {Format.Money(request.Total)} · requested by {request.Requester.DisplayName}")">
+        <TitleSuffix>
+            <StatusBadge Status="request.Status" />
+        </TitleSuffix>
+        <Actions>
+            @if (isRequester && RequestService.CanEdit(request))
+            {
+                <FluentButton Appearance="ButtonAppearance.Primary" IconStart="@(new Icons.Regular.Size20.Send())"
+                              Loading="@working" OnClick="SubmitAsync">
+                    Submit for approval
+                </FluentButton>
+                <FluentAnchorButton Href="@($"requests/{request.Id}/edit")" IconStart="@(new Icons.Regular.Size20.Edit())">Edit</FluentAnchorButton>
+            }
+            @if (isRequester && RequestService.CanCancel(request))
+            {
+                <FluentButton Appearance="ButtonAppearance.Subtle" IconStart="@(new Icons.Regular.Size20.Dismiss())"
+                              Disabled="@working" OnClick="CancelAsync">
+                    Cancel request
+                </FluentButton>
+            }
+        </Actions>
+    </PageHeader>
 
     @if (errorMessage is not null)
     {
-        <div class="alert alert-danger" role="alert">@errorMessage</div>
-    }
-    @if (successMessage is not null)
-    {
-        <div class="alert alert-success" role="status">@successMessage</div>
+        <FluentMessageBar Intent="MessageBarIntent.Error" Class="page-message">@errorMessage</FluentMessageBar>
     }
 
     @if (ApprovalService.CanDecide(request, currentStep, user))
     {
-        <div class="card border-warning mb-4">
-            <div class="card-body">
-                <h2 class="h5 card-title">Your decision (@Format.Step(currentStep!.StepType) approval)</h2>
-                <label for="decision-comment" class="form-label">Comment <span class="text-muted">(required to reject or return)</span></label>
-                <textarea id="decision-comment" class="form-control mb-3" rows="2" @bind="decisionComment"></textarea>
-                <div class="d-flex flex-wrap gap-2">
-                    <button class="btn btn-success" disabled="@working" @onclick="() => DecideAsync(Decision.Approved)">Approve</button>
-                    <button class="btn btn-outline-secondary" disabled="@working" @onclick="() => DecideAsync(Decision.Returned)">Return for changes</button>
-                    <button class="btn btn-outline-danger" disabled="@working" @onclick="() => DecideAsync(Decision.Rejected)">Reject</button>
-                </div>
+        <FluentCard Class="action-card action-card-decision">
+            <h2 class="section-title">Your decision: @Format.Step(currentStep!.StepType) approval</h2>
+            <FluentTextArea Label="Comment" @bind-Value="decisionComment" Placeholder="Required to return or reject"
+                            AutoResize="true" />
+            <div class="action-card-buttons">
+                <FluentButton Appearance="ButtonAppearance.Primary" IconStart="@(new Icons.Regular.Size20.Checkmark())"
+                              Loading="@working" OnClick="() => DecideAsync(Decision.Approved)">
+                    Approve
+                </FluentButton>
+                <FluentButton IconStart="@(new Icons.Regular.Size20.ArrowUndo())" Disabled="@working"
+                              OnClick="() => DecideAsync(Decision.Returned)">
+                    Return for changes
+                </FluentButton>
+                <FluentButton Appearance="ButtonAppearance.Subtle" IconStart="@(new Icons.Regular.Size20.Dismiss())"
+                              Disabled="@working" OnClick="() => DecideAsync(Decision.Rejected)">
+                    Reject
+                </FluentButton>
             </div>
-        </div>
+        </FluentCard>
     }
 
     @if (PurchasingService.CanMarkOrdered(request, user) || PurchasingService.CanMarkReceived(request, user))
     {
         var ordering = request.Status == RequestStatus.Approved;
-        <div class="card border-info mb-4">
-            <div class="card-body">
-                <h2 class="h5 card-title">Purchasing</h2>
-                <label for="purchasing-comment" class="form-label">Comment <span class="text-muted">(optional, for example a PO number or tracking link)</span></label>
-                <textarea id="purchasing-comment" class="form-control mb-3" rows="2" @bind="purchasingComment"></textarea>
-                <button class="btn btn-primary" disabled="@working" @onclick="() => MarkAsync(ordering)">
+        <FluentCard Class="action-card">
+            <h2 class="section-title">Purchasing</h2>
+            <FluentTextArea Label="Comment (optional)" @bind-Value="purchasingComment"
+                            Placeholder="For example a PO number or tracking link" AutoResize="true" />
+            <div class="action-card-buttons">
+                <FluentButton Appearance="ButtonAppearance.Primary" Loading="@working" OnClick="() => MarkAsync(ordering)"
+                              IconStart="@(ordering ? new Icons.Regular.Size20.Cart() : new Icons.Regular.Size20.BoxCheckmark())">
                     @(ordering ? "Mark ordered" : "Mark received")
-                </button>
+                </FluentButton>
             </div>
-        </div>
+        </FluentCard>
     }
 
-    <dl class="row">
-        <dt class="col-sm-3">Requester</dt>
-        <dd class="col-sm-9">@request.Requester.DisplayName</dd>
-        <dt class="col-sm-3">Vendor</dt>
-        <dd class="col-sm-9">@request.Vendor</dd>
-        <dt class="col-sm-3">Category</dt>
-        <dd class="col-sm-9">@request.Category.Name</dd>
-        <dt class="col-sm-3">Needed by</dt>
-        <dd class="col-sm-9">@(request.NeededBy is { } neededBy ? Format.Date(neededBy) : "—")</dd>
-        <dt class="col-sm-3">Created</dt>
-        <dd class="col-sm-9">@Format.DateAndTime(request.CreatedAt)</dd>
-        @if (request.SubmittedAt is { } submittedAt)
-        {
-            <dt class="col-sm-3">Submitted</dt>
-            <dd class="col-sm-9">@Format.DateAndTime(submittedAt)</dd>
-        }
-        <dt class="col-sm-3">Justification</dt>
-        <dd class="col-sm-9" style="white-space: pre-line">@request.Justification</dd>
-    </dl>
+    <div class="detail-layout">
+        <div class="detail-main">
+            <section class="form-section">
+                <h2 class="section-title">Details</h2>
+                <dl class="detail-list">
+                    <dt>Category</dt>
+                    <dd>@request.Category.Name</dd>
+                    <dt>Needed by</dt>
+                    <dd>@(request.NeededBy is { } neededBy ? Format.Date(neededBy) : "—")</dd>
+                    <dt>Created</dt>
+                    <dd>@Format.DateAndTime(request.CreatedAt)</dd>
+                    @if (request.SubmittedAt is { } submittedAt)
+                    {
+                        <dt>Submitted</dt>
+                        <dd>@Format.DateAndTime(submittedAt)</dd>
+                    }
+                    <dt>Justification</dt>
+                    <dd class="preserve-lines">@request.Justification</dd>
+                </dl>
+            </section>
 
-    <h2 class="h5">Line items</h2>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Description</th>
-                <th class="text-end">Quantity</th>
-                <th class="text-end">Unit price</th>
-                <th class="text-end">Line total</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var line in request.LineItems)
-            {
-                <tr>
-                    <td>
-                        @line.Description
-                        @if (line.Url is not null)
+            <section class="form-section">
+                <h2 class="section-title">Line items</h2>
+                <FluentDataGrid Items="@request.LineItems.AsQueryable()" TGridItem="LineItem" GridTemplateColumns="2fr 90px 120px 130px">
+                    <TemplateColumn Title="Description">
+                        @context.Description
+                        @if (context.Url is not null)
                         {
-                            <a href="@line.Url" target="_blank" rel="noopener noreferrer" class="ms-1">link</a>
+                            <a href="@context.Url" target="_blank" rel="noopener noreferrer">link</a>
                         }
-                    </td>
-                    <td class="text-end">@line.Quantity</td>
-                    <td class="text-end">@Format.Money(line.UnitPrice)</td>
-                    <td class="text-end">@Format.Money(line.LineTotal)</td>
-                </tr>
-            }
-        </tbody>
-        <tfoot>
-            <tr>
-                <td colspan="3" class="text-end fw-bold">Total</td>
-                <td class="text-end fw-bold">@Format.Money(request.Total)</td>
-            </tr>
-        </tfoot>
-    </table>
+                    </TemplateColumn>
+                    <PropertyColumn Title="Quantity" Property="@(l => l.Quantity)" Align="DataGridCellAlignment.End" />
+                    <TemplateColumn Title="Unit price" Align="DataGridCellAlignment.End">@Format.Money(context.UnitPrice)</TemplateColumn>
+                    <TemplateColumn Title="Line total" Align="DataGridCellAlignment.End">@Format.Money(context.LineTotal)</TemplateColumn>
+                </FluentDataGrid>
+                <div class="form-total">
+                    <span class="text-subtle">Total</span>
+                    <strong>@Format.Money(request.Total)</strong>
+                </div>
+            </section>
+        </div>
 
-    @if (request.ApprovalSteps.Count > 0)
-    {
-        <h2 class="h5">Approvals</h2>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Step</th>
-                    <th>Approver</th>
-                    <th>Decision</th>
-                    <th>Decided by</th>
-                    <th>Comment</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var step in request.ApprovalSteps)
+        <aside class="detail-side">
+            <section class="form-section">
+                <h2 class="section-title">Approvals</h2>
+                <ApprovalTimeline Steps="request.ApprovalSteps" CurrentStep="currentStep" />
+                @if (request.ThresholdAtSubmit is { } threshold)
                 {
-                    <tr class="@(step.Decision == Decision.Superseded ? "text-muted" : "") @(step == currentStep ? "table-warning" : "")">
-                        <td>@Format.Step(step.StepType)@(step.Round > 1 ? $" (round {step.Round})" : "")</td>
-                        <td>@Format.Approver(step)</td>
-                        <td>@(step == currentStep ? "Waiting" : step.Decision.ToString())</td>
-                        <td>@(step.DecidedBy is { } decidedBy ? $"{decidedBy.DisplayName}, {Format.DateAndTime(step.DecidedAt!.Value)}" : "")</td>
-                        <td style="white-space: pre-line">@step.Comment</td>
-                    </tr>
+                    <p class="text-subtle">Finance approval threshold when submitted: @Format.Money(threshold)</p>
                 }
-            </tbody>
-        </table>
-        @if (request.ThresholdAtSubmit is { } threshold)
-        {
-            <p class="text-muted small">Finance approval threshold when submitted: @Format.Money(threshold)</p>
-        }
-    }
+            </section>
 
-    <h2 class="h5">History</h2>
-    <ul class="list-group">
-        @foreach (var entry in request.History)
-        {
-            <li class="list-group-item">
-                <strong>@entry.Action</strong> by @entry.User.DisplayName
-                <span class="text-muted">· @Format.DateAndTime(entry.OccurredAt)</span>
-                @if (entry.Comment is not null)
-                {
-                    <div class="mt-1" style="white-space: pre-line">@entry.Comment</div>
-                }
-            </li>
-        }
-    </ul>
-
-    <p class="mt-4"><a href="@(isRequester ? "requests" : "approvals")">@(isRequester ? "Back to my requests" : "Back to my approvals")</a></p>
+            <section class="form-section">
+                <h2 class="section-title">History</h2>
+                <ol class="history-list">
+                    @foreach (var entry in request.History.OrderByDescending(h => h.OccurredAt))
+                    {
+                        <li>
+                            <div><strong>@entry.Action</strong> by @entry.User.DisplayName</div>
+                            <div class="text-subtle">@Format.DateAndTime(entry.OccurredAt)</div>
+                            @if (entry.Comment is not null)
+                            {
+                                <blockquote class="timeline-comment">@entry.Comment</blockquote>
+                            }
+                        </li>
+                    }
+                </ol>
+            </section>
+        </aside>
+    </div>
 }
 
 @code {
@@ -199,12 +168,10 @@ else
     private Request? request;
     private CurrentUser user = null!;
     private AccessResult access = AccessResult.Allowed;
-    private bool confirmingCancel;
     private bool working;
     private string? decisionComment;
     private string? purchasingComment;
     private string? errorMessage;
-    private string? successMessage;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -222,26 +189,42 @@ else
     private Task SubmitAsync() => RunAsync(async () =>
     {
         await ApprovalService.SubmitAsync(Id, user.Id);
-        successMessage = "Submitted. Your approvers have been notified.";
+        return "Submitted. Your approvers have been notified.";
     });
 
-    private Task CancelAsync() => RunAsync(async () =>
+    private async Task CancelAsync()
     {
-        await RequestService.CancelAsync(Id, user.Id);
-        confirmingCancel = false;
-    });
-
-    private Task DecideAsync(Decision decision) => RunAsync(async () =>
-    {
-        await ApprovalService.DecideAsync(Id, user, decision, decisionComment);
-        decisionComment = null;
-        successMessage = decision switch
+        if (await ConfirmAsync("Cancel this request? This cannot be undone.", "Cancel request", "Cancel request", "Keep it"))
         {
-            Decision.Approved => "Approved.",
-            Decision.Returned => "Returned to the requester for changes.",
-            _ => "Rejected."
-        };
-    });
+            await RunAsync(async () =>
+            {
+                await RequestService.CancelAsync(Id, user.Id);
+                return "Request cancelled.";
+            });
+        }
+    }
+
+    private async Task DecideAsync(Decision decision)
+    {
+        // Reject is final, so ask first. Without a comment, skip the dialog and let the service explain what is missing.
+        if (decision == Decision.Rejected && !string.IsNullOrWhiteSpace(decisionComment)
+            && !await ConfirmAsync("Reject this request? The requester will need to start a new one.", "Reject request", "Reject", "Go back"))
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            await ApprovalService.DecideAsync(Id, user, decision, decisionComment);
+            decisionComment = null;
+            return decision switch
+            {
+                Decision.Approved => "Approved.",
+                Decision.Returned => "Returned to the requester for changes.",
+                _ => "Rejected."
+            };
+        });
+    }
 
     private Task MarkAsync(bool ordering) => RunAsync(async () =>
     {
@@ -254,18 +237,25 @@ else
             await PurchasingService.MarkReceivedAsync(Id, user, purchasingComment);
         }
         purchasingComment = null;
-        successMessage = ordering ? "Marked ordered. The requester has been notified." : "Marked received. The requester has been notified.";
+        return ordering ? "Marked ordered. The requester has been notified." : "Marked received. The requester has been notified.";
     });
 
-    private async Task RunAsync(Func<Task> action)
+    private async Task<bool> ConfirmAsync(string message, string title, string confirm, string cancel)
+    {
+        var result = await DialogService.ShowConfirmationAsync(message, title, confirm, cancel);
+        return !result.Cancelled;
+    }
+
+    // Runs an action, reloads the request, and shows the action's success message as a toast.
+    private async Task RunAsync(Func<Task<string>> action)
     {
         working = true;
         errorMessage = null;
-        successMessage = null;
         try
         {
-            await action();
+            var success = await action();
             await LoadAsync();
+            await Toasts.ShowSuccessToastAsync(success);
         }
         catch (Exception ex) when (ex is ValidationException or InvalidOperationException)
         {

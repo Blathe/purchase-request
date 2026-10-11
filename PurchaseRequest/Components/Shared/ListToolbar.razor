@@ -1,0 +1,62 @@
+@* Search box and optional status filter shared by the list pages. *@
+<div class="list-toolbar">
+    <FluentTextInput Value="@Search" ValueChanged="SearchChanged" Immediate="true" ImmediateDelay="250"
+                     Placeholder="@SearchPlaceholder" AriaLabel="Search" Width="280px"
+                     StartTemplate="@SearchIcon" />
+    @if (Statuses is not null)
+    {
+        <FluentSelect TOption="StatusOption" TValue="string" Items="@statusOptions" Width="200px" AriaLabel="Filter by status"
+                      OptionText="@(o => o.Label)" OptionValue="@(o => o.Value)"
+                      Value="@Status" ValueChanged="StatusChanged" />
+    }
+    @if (Count is int count)
+    {
+        <span class="list-toolbar-count">@count @(count == 1 ? "request" : "requests")</span>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? Search { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> SearchChanged { get; set; }
+
+    [Parameter]
+    public string SearchPlaceholder { get; set; } = "Search by number or vendor";
+
+    // The statuses offered in the filter. Leave null to hide it.
+    [Parameter]
+    public IEnumerable<RequestStatus>? Statuses { get; set; }
+
+    // The selected status name, or "" for all.
+    [Parameter]
+    public string? Status { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> StatusChanged { get; set; }
+
+    [Parameter]
+    public int? Count { get; set; }
+
+    private List<StatusOption> statusOptions = [];
+
+    private static readonly RenderFragment SearchIcon =
+        @<FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Custom" CustomColor="var(--colorNeutralForeground3)" />;
+
+    protected override void OnParametersSet()
+    {
+        statusOptions = [new("All statuses", ""), .. (Statuses ?? []).Select(s => new StatusOption(Format.Status(s), s.ToString()))];
+    }
+
+    // Case-insensitive match on request number or vendor.
+    public static bool Matches(string? search, string number, string vendor) =>
+        string.IsNullOrWhiteSpace(search)
+        || number.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)
+        || vendor.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    public static bool Matches(string? status, RequestStatus value) =>
+        string.IsNullOrEmpty(status) || status == value.ToString();
+
+    private sealed record StatusOption(string Label, string Value);
+}

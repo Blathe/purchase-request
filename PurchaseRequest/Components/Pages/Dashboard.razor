@@ -4,51 +4,52 @@
 
 <PageTitle>Dashboard</PageTitle>
 
-<h1>Dashboard</h1>
+<PageHeader Title="Dashboard" />
 
 @if (dashboard is null)
 {
-    <p>Loading…</p>
+    <FluentProgressBar />
 }
 else
 {
-    <div class="row g-3 mb-4">
-        <div class="col-sm-6 col-lg-4">
-            <a href="approvals" class="card text-decoration-none h-100">
-                <div class="card-body">
-                    <div class="text-muted">Waiting on your approval</div>
-                    <div class="display-6">@dashboard.PendingApprovals</div>
+    <div class="kpi-grid">
+        <a href="approvals" class="kpi-link">
+            <FluentCard Class="kpi-card">
+                <FluentIcon Value="@(new Icons.Regular.Size24.TaskListSquareLtr())" />
+                <div>
+                    <div class="text-subtle">Waiting on your approval</div>
+                    <div class="kpi-value">@dashboard.PendingApprovals</div>
                 </div>
-            </a>
-        </div>
-        <div class="col-sm-6 col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="text-muted">@(dashboard.IsManager ? "Team spend" : "Your spend") in @dashboard.Year</div>
-                    <div class="display-6">@Format.Money(dashboard.Total)</div>
-                </div>
+            </FluentCard>
+        </a>
+        <FluentCard Class="kpi-card">
+            <FluentIcon Value="@(new Icons.Regular.Size24.Money())" />
+            <div>
+                <div class="text-subtle">@(dashboard.IsManager ? "Team spend" : "Your spend") in @dashboard.Year</div>
+                <div class="kpi-value">@Format.Money(dashboard.Total)</div>
             </div>
-        </div>
+        </FluentCard>
     </div>
 
-    <p class="text-muted small">
+    <p class="text-subtle">
         @(dashboard.IsManager ? "Approved requests from your direct reports" : "Your approved requests"),
         including ordered and received, by the month they were submitted.
     </p>
 
     @if (dashboard.ByMonth.Count == 0)
     {
-        <p>No approved spend yet this year.</p>
+        <EmptyState Title="No approved spend yet this year" Icon="@(new Icons.Regular.Size24.DataBarVertical())"
+                    Message="Spend appears here once requests are approved." />
     }
     else
     {
-        <div class="row g-4">
-            <div class="col-lg-6">
+        <div class="spend-grid">
+            <FluentCard>
                 <SpendTable Title="By month" LabelHeader="Month" Rows="dashboard.ByMonth" />
-            </div>
-            <div class="col-lg-6">
+            </FluentCard>
+            <FluentCard>
                 <SpendTable Title="By category" LabelHeader="Category" Rows="dashboard.ByCategory" />
-            </div>
+            </FluentCard>
         </div>
     }
 }
