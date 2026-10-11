@@ -43,10 +43,10 @@ Tests marked ✅ exist in `tests/PurchaseRequest.Tests`. Unmarked names are plan
 | FR-08 | | US-03, US-05 | UAT-03, UAT-10 | `ApprovalServiceTests.Submit_EmailsFirstApprover` ✅, `ApprovalServiceTests.Approve_AllSteps_SetsApprovedAndEmailsPurchasing` ✅ |
 | FR-09 | | US-06 | UAT-15 | `RequestServiceTests.List_ShowsOnlyOwnRequests` ✅ |
 | FR-10 | | US-05, US-06 | UAT-15 | `RequestServiceTests.SaveDraft_WritesCreatedHistory` ✅, `HistoryTests.EveryTransition_WritesHistoryRow` |
-| FR-11 | | US-07 | UAT-11 | `PurchasingTests.MarkOrdered_OnlyWhenApproved` |
+| FR-11 | | US-07 | UAT-11 | `PurchasingTests.MarkOrdered_OnlyWhenApproved` ✅, `PurchasingTests.MarkOrderedThenReceived_UpdatesStatusHistoryAndEmails` ✅ |
 | FR-12 | | US-08 | UAT-13 | `RequestServiceTests.Cancel_PendingRequest_SetsCancelled` ✅ |
-| FR-13 | | US-09 | UAT-16 | `DashboardTests.TeamSpend_GroupsByMonthAndCategory` |
-| FR-14 | BR-02, BR-03 | US-10 | UAT-17 | `SettingsTests.ThresholdChange_DoesNotAffectSubmitted` |
+| FR-13 | | US-09 | UAT-16 | `DashboardTests.TeamSpend_GroupsByMonthAndCategory` ✅, `DashboardTests.NotManager_SeesOnlyOwnSpend` ✅ |
+| FR-14 | BR-02, BR-03 | US-10 | UAT-17 | `SettingsTests.ThresholdChange_DoesNotAffectSubmitted` ✅, `SettingsTests.ItCategoryChange_AppliesToNewSubmissionsOnly` ✅ |
 | FR-15 | | *Not yet written* | | |
 | NFR-01 | | US-01 | UAT-01 | `AuthorizationTests.AllPages_RequireAuthentication` |
 | NFR-02 | | US-06 | UAT-14 | `RequestServiceTests.OtherUsersRequest_IsDenied` ✅ |

@@ -52,6 +52,9 @@ builder.Services.AddScoped<RequestService>();
 builder.Services.AddSingleton<IRequestNumberGenerator, SqlRequestNumberGenerator>();
 builder.Services.AddScoped<ApprovalService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<PurchasingService>();
+builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<SettingsService>();
 builder.Services.AddScoped<IEmailSender, LogEmailSender>();
 builder.Services.AddHttpClient<IDirectoryService, GraphDirectoryService>(client =>
     client.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/"));

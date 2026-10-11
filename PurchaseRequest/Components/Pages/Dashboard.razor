@@ -1,0 +1,64 @@
+@page "/dashboard"
+@inject CurrentUserService CurrentUserService
+@inject DashboardService DashboardService
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>Dashboard</h1>
+
+@if (dashboard is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-4">
+            <a href="approvals" class="card text-decoration-none h-100">
+                <div class="card-body">
+                    <div class="text-muted">Waiting on your approval</div>
+                    <div class="display-6">@dashboard.PendingApprovals</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted">@(dashboard.IsManager ? "Team spend" : "Your spend") in @dashboard.Year</div>
+                    <div class="display-6">@Format.Money(dashboard.Total)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="text-muted small">
+        @(dashboard.IsManager ? "Approved requests from your direct reports" : "Your approved requests"),
+        including ordered and received, by the month they were submitted.
+    </p>
+
+    @if (dashboard.ByMonth.Count == 0)
+    {
+        <p>No approved spend yet this year.</p>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <SpendTable Title="By month" LabelHeader="Month" Rows="dashboard.ByMonth" />
+            </div>
+            <div class="col-lg-6">
+                <SpendTable Title="By category" LabelHeader="Category" Rows="dashboard.ByCategory" />
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private DashboardSummary? dashboard;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await CurrentUserService.GetAsync();
+        dashboard = await DashboardService.GetAsync(user);
+    }
+}

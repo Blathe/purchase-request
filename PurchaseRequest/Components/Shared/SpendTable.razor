@@ -1,0 +1,44 @@
+<h2 class="h5">@Title</h2>
+<table class="table align-middle">
+    <thead>
+        <tr>
+            <th>@LabelHeader</th>
+            <th class="w-50"><span class="visually-hidden">Share of total</span></th>
+            <th class="text-end">Requests</th>
+            <th class="text-end">Spend</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in Rows)
+        {
+            <tr>
+                <td>@row.Label</td>
+                <td>
+                    <div class="progress" role="presentation" style="height: 0.75rem">
+                        <div class="progress-bar" style="width: @Percent(row)%"></div>
+                    </div>
+                </td>
+                <td class="text-end">@row.Count</td>
+                <td class="text-end">@Format.Money(row.Total)</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string LabelHeader { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public List<SpendRow> Rows { get; set; } = [];
+
+    // Bars are scaled to the largest row so the biggest one fills the column.
+    private string Percent(SpendRow row)
+    {
+        var max = Rows.Max(r => r.Total);
+        return (max == 0 ? 0 : row.Total / max * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+    }
+}
