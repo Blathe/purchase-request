@@ -28,6 +28,7 @@ else
                 <th>Category</th>
                 <th class="text-end">Total</th>
                 <th>Status</th>
+                <th>Waiting on</th>
             </tr>
         </thead>
         <tbody>
@@ -40,6 +41,7 @@ else
                     <td>@request.Category.Name</td>
                     <td class="text-end">@Format.Money(request.Total)</td>
                     <td><StatusBadge Status="request.Status" /></td>
+                    <td>@(request.Status == RequestStatus.PendingApproval && ApprovalService.CurrentStep(request) is { } step ? Format.Approver(step) : "")</td>
                 </tr>
             }
         </tbody>

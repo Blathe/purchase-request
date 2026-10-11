@@ -1,7 +1,9 @@
 @page "/requests/{Id:int}"
 @rendermode InteractiveServer
-@inject CurrentUserService CurrentUser
+@using System.ComponentModel.DataAnnotations
+@inject CurrentUserService CurrentUserService
 @inject RequestService RequestService
+@inject ApprovalService ApprovalService
 
 <PageTitle>@(request?.Number ?? "Request")</PageTitle>
 
@@ -15,31 +17,58 @@ else if (request is null)
 }
 else
 {
+    var isRequester = request.RequesterId == user.Id;
+    var currentStep = ApprovalService.CurrentStep(request);
+
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="mb-0">@request.Number <StatusBadge Status="request.Status" /></h1>
-        <div class="d-flex gap-2">
-            @if (RequestService.CanEdit(request))
-            {
-                <a class="btn btn-primary" href="requests/@request.Id/edit">Edit</a>
-            }
-            @if (RequestService.CanCancel(request))
-            {
-                @if (confirmingCancel)
+        @if (isRequester)
+        {
+            <div class="d-flex gap-2">
+                @if (RequestService.CanEdit(request))
                 {
-                    <button class="btn btn-danger" disabled="@working" @onclick="CancelAsync">Yes, cancel request</button>
-                    <button class="btn btn-outline-secondary" @onclick="() => confirmingCancel = false">Keep it</button>
+                    <button class="btn btn-success" disabled="@working" @onclick="SubmitAsync">Submit for approval</button>
+                    <a class="btn btn-primary" href="requests/@request.Id/edit">Edit</a>
                 }
-                else
+                @if (RequestService.CanCancel(request))
                 {
-                    <button class="btn btn-outline-danger" @onclick="() => confirmingCancel = true">Cancel request</button>
+                    @if (confirmingCancel)
+                    {
+                        <button class="btn btn-danger" disabled="@working" @onclick="CancelAsync">Yes, cancel request</button>
+                        <button class="btn btn-outline-secondary" @onclick="() => confirmingCancel = false">Keep it</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-danger" @onclick="() => confirmingCancel = true">Cancel request</button>
+                    }
                 }
-            }
-        </div>
+            </div>
+        }
     </div>
 
     @if (errorMessage is not null)
     {
         <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+
+    @if (ApprovalService.CanDecide(request, currentStep, user))
+    {
+        <div class="card border-warning mb-4">
+            <div class="card-body">
+                <h2 class="h5 card-title">Your decision (@Format.Step(currentStep!.StepType) approval)</h2>
+                <label for="decision-comment" class="form-label">Comment <span class="text-muted">(required to reject or return)</span></label>
+                <textarea id="decision-comment" class="form-control mb-3" rows="2" @bind="decisionComment"></textarea>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-success" disabled="@working" @onclick="() => DecideAsync(Decision.Approved)">Approve</button>
+                    <button class="btn btn-outline-secondary" disabled="@working" @onclick="() => DecideAsync(Decision.Returned)">Return for changes</button>
+                    <button class="btn btn-outline-danger" disabled="@working" @onclick="() => DecideAsync(Decision.Rejected)">Reject</button>
+                </div>
+            </div>
+        </div>
     }
 
     <dl class="row">
@@ -53,6 +82,11 @@ else
         <dd class="col-sm-9">@(request.NeededBy is { } neededBy ? Format.Date(neededBy) : "—")</dd>
         <dt class="col-sm-3">Created</dt>
         <dd class="col-sm-9">@Format.DateAndTime(request.CreatedAt)</dd>
+        @if (request.SubmittedAt is { } submittedAt)
+        {
+            <dt class="col-sm-3">Submitted</dt>
+            <dd class="col-sm-9">@Format.DateAndTime(submittedAt)</dd>
+        }
         <dt class="col-sm-3">Justification</dt>
         <dd class="col-sm-9" style="white-space: pre-line">@request.Justification</dd>
     </dl>
@@ -92,6 +126,38 @@ else
         </tfoot>
     </table>
 
+    @if (request.ApprovalSteps.Count > 0)
+    {
+        <h2 class="h5">Approvals</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Step</th>
+                    <th>Approver</th>
+                    <th>Decision</th>
+                    <th>Decided by</th>
+                    <th>Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var step in request.ApprovalSteps)
+                {
+                    <tr class="@(step.Decision == Decision.Superseded ? "text-muted" : "") @(step == currentStep ? "table-warning" : "")">
+                        <td>@Format.Step(step.StepType)@(step.Round > 1 ? $" (round {step.Round})" : "")</td>
+                        <td>@Format.Approver(step)</td>
+                        <td>@(step == currentStep ? "Waiting" : step.Decision.ToString())</td>
+                        <td>@(step.DecidedBy is { } decidedBy ? $"{decidedBy.DisplayName}, {Format.DateAndTime(step.DecidedAt!.Value)}" : "")</td>
+                        <td style="white-space: pre-line">@step.Comment</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (request.ThresholdAtSubmit is { } threshold)
+        {
+            <p class="text-muted small">Finance approval threshold when submitted: @Format.Money(threshold)</p>
+        }
+    }
+
     <h2 class="h5">History</h2>
     <ul class="list-group">
         @foreach (var entry in request.History)
@@ -107,7 +173,7 @@ else
         }
     </ul>
 
-    <p class="mt-4"><a href="requests">Back to my requests</a></p>
+    <p class="mt-4"><a href="@(isRequester ? "requests" : "approvals")">@(isRequester ? "Back to my requests" : "Back to my approvals")</a></p>
 }
 
 @code {
@@ -115,36 +181,62 @@ else
     public int Id { get; set; }
 
     private Request? request;
+    private CurrentUser user = null!;
     private AccessResult access = AccessResult.Allowed;
     private bool confirmingCancel;
     private bool working;
+    private string? decisionComment;
     private string? errorMessage;
-    private int userId;
+    private string? successMessage;
 
     protected override async Task OnParametersSetAsync()
     {
-        userId = (await CurrentUser.GetAsync()).Id;
+        user = await CurrentUserService.GetAsync();
         await LoadAsync();
     }
 
     private async Task LoadAsync()
     {
-        var result = await RequestService.GetForViewAsync(Id, userId);
+        var result = await RequestService.GetForViewAsync(Id, user);
         access = result.Access;
         request = result.Request;
     }
 
-    private async Task CancelAsync()
+    private Task SubmitAsync() => RunAsync(async () =>
+    {
+        await ApprovalService.SubmitAsync(Id, user.Id);
+        successMessage = "Submitted. Your approvers have been notified.";
+    });
+
+    private Task CancelAsync() => RunAsync(async () =>
+    {
+        await RequestService.CancelAsync(Id, user.Id);
+        confirmingCancel = false;
+    });
+
+    private Task DecideAsync(Decision decision) => RunAsync(async () =>
+    {
+        await ApprovalService.DecideAsync(Id, user, decision, decisionComment);
+        decisionComment = null;
+        successMessage = decision switch
+        {
+            Decision.Approved => "Approved.",
+            Decision.Returned => "Returned to the requester for changes.",
+            _ => "Rejected."
+        };
+    });
+
+    private async Task RunAsync(Func<Task> action)
     {
         working = true;
         errorMessage = null;
+        successMessage = null;
         try
         {
-            await RequestService.CancelAsync(Id, userId);
-            confirmingCancel = false;
+            await action();
             await LoadAsync();
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is ValidationException or InvalidOperationException)
         {
             errorMessage = ex.Message;
         }

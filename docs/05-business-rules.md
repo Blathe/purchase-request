@@ -5,13 +5,15 @@
 | BR-01 | The first approver is the requester's manager, as recorded in Entra ID. | Submit | Purchasing policy | No |
 | BR-02 | Requests with a total **over** the finance threshold (default $5,000.00) need Finance approval as the final step. | Submit | Finance policy | Yes, by Admin |
 | BR-03 | Requests in a category flagged "Requires IT approval" (default: Hardware, Software, SaaS) need IT approval after the manager. | Submit | IT security policy | Yes, by Admin |
-| BR-04 | Nobody approves their own request. If an approver in the chain is the requester, that step goes to the approver's manager instead. | Submit | Internal controls | No |
+| BR-04 | Nobody approves their own request. If the requester holds the role for an IT or Finance step, another member of that role must approve it. | Submit | Internal controls | No |
 | BR-05 | A submitted request cannot be edited. A returned request goes back to Draft, and resubmitting builds a new approval chain from the first step. | Return / Submit | Internal controls | No |
 
 ## Details and edge cases
 
 **BR-01**
-- If the requester has no manager in Entra ID, the step goes to the Admin role, who reassigns it.
+- The manager is looked up in Entra ID (Microsoft Graph) at submit time, so the chain follows the current org chart.
+- If the requester has no manager in Entra ID, the step goes to the Admin role.
+- If Microsoft Graph is unavailable, the last known manager is used so submitting is not blocked.
 
 **BR-02**
 - A total exactly equal to the threshold does **not** need Finance approval.

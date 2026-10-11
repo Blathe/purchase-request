@@ -13,6 +13,7 @@ namespace PurchaseRequest.Data
         public DbSet<ApprovalStep> ApprovalSteps => Set<ApprovalStep>();
         public DbSet<RequestHistory> RequestHistory => Set<RequestHistory>();
         public DbSet<Setting> Settings => Set<Setting>();
+        public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -25,6 +26,7 @@ namespace PurchaseRequest.Data
                 user.Property(u => u.DisplayName).HasMaxLength(200);
                 user.Property(u => u.Email).HasMaxLength(256);
                 user.Property(u => u.Department).HasMaxLength(100);
+                user.Property(u => u.Roles).HasMaxLength(200);
                 user.HasOne(u => u.Manager).WithMany()
                     .HasForeignKey(u => u.ManagerId)
                     .OnDelete(DeleteBehavior.Restrict);
@@ -88,10 +90,11 @@ namespace PurchaseRequest.Data
 
             modelBuilder.Entity<ApprovalStep>(step =>
             {
-                step.HasIndex(s => new { s.RequestId, s.Sequence });
+                step.HasIndex(s => new { s.RequestId, s.Round, s.Sequence });
                 step.HasIndex(s => new { s.ApproverId, s.Decision });
                 step.Property(s => s.StepType).HasConversion<string>().HasMaxLength(20);
-                step.Property(s => s.Decision).HasConversion<string>().HasMaxLength(20);
+                // Concurrency token: two approvers cannot both decide the same pending step.
+                step.Property(s => s.Decision).HasConversion<string>().HasMaxLength(20).IsConcurrencyToken();
                 step.Property(s => s.ApproverRole).HasMaxLength(50);
                 step.Property(s => s.Comment).HasMaxLength(1000);
                 step.HasOne(s => s.Approver).WithMany()
@@ -112,6 +115,14 @@ namespace PurchaseRequest.Data
                 history.HasOne(h => h.User).WithMany()
                     .HasForeignKey(h => h.UserId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<OutboxMessage>(message =>
+            {
+                message.HasIndex(m => m.CreatedAt);
+                message.Property(m => m.To).HasMaxLength(256);
+                message.Property(m => m.Subject).HasMaxLength(300);
+                message.Property(m => m.Body).HasMaxLength(4000);
             });
 
             modelBuilder.Entity<Setting>(setting =>

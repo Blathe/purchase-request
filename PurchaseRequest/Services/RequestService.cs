@@ -21,12 +21,13 @@ namespace PurchaseRequest.Services
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.Requests.AsNoTracking()
                 .Include(r => r.Category)
+                .Include(r => r.ApprovalSteps).ThenInclude(s => s.Approver)
                 .Where(r => r.RequesterId == userId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<RequestResult> GetForViewAsync(int requestId, int userId, CancellationToken cancellationToken = default)
+        public async Task<RequestResult> GetForViewAsync(int requestId, CurrentUser user, CancellationToken cancellationToken = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var request = await db.Requests.AsNoTracking()
@@ -34,6 +35,8 @@ namespace PurchaseRequest.Services
                 .Include(r => r.Requester)
                 .Include(r => r.LineItems.OrderBy(l => l.Id))
                 .Include(r => r.History.OrderBy(h => h.OccurredAt)).ThenInclude(h => h.User)
+                .Include(r => r.ApprovalSteps.OrderBy(s => s.Round).ThenBy(s => s.Sequence)).ThenInclude(s => s.Approver)
+                .Include(r => r.ApprovalSteps).ThenInclude(s => s.DecidedBy)
                 .AsSplitQuery()
                 .SingleOrDefaultAsync(r => r.Id == requestId, cancellationToken);
 
@@ -42,9 +45,17 @@ namespace PurchaseRequest.Services
                 return new(AccessResult.NotFound);
             }
 
-            // Approver, Finance, Purchasing and Admin access is added with the approval workflow.
-            return request.RequesterId == userId ? new(AccessResult.Allowed, request) : new(AccessResult.Denied);
+            return CanView(request, user) ? new(AccessResult.Allowed, request) : new(AccessResult.Denied);
         }
+
+        // NFR-02: the requester, anyone assigned to or holding the role for one of its steps,
+        // and Finance, Purchasing and Admin can view a request.
+        public static bool CanView(Request request, CurrentUser user) =>
+            request.RequesterId == user.Id
+            || user.CanViewAll
+            || request.ApprovalSteps.Any(s => s.ApproverId == user.Id
+                || s.DecidedById == user.Id
+                || (s.ApproverRole is not null && user.IsInRole(s.ApproverRole)));
 
         // FR-02, FR-03, FR-04: create a new draft and assign its number.
         public async Task<Request> CreateDraftAsync(int userId, RequestFormModel model, CancellationToken cancellationToken = default)
@@ -107,7 +118,9 @@ namespace PurchaseRequest.Services
         public async Task<RequestResult> CancelAsync(int requestId, int userId, CancellationToken cancellationToken = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-            var request = await db.Requests.SingleOrDefaultAsync(r => r.Id == requestId, cancellationToken);
+            var request = await db.Requests
+                .Include(r => r.ApprovalSteps)
+                .SingleOrDefaultAsync(r => r.Id == requestId, cancellationToken);
 
             if (request is null)
             {
@@ -131,6 +144,7 @@ namespace PurchaseRequest.Services
                 ToStatus = RequestStatus.Cancelled,
                 OccurredAt = clock.GetUtcNow().UtcDateTime
             });
+            ApprovalService.SupersedePendingSteps(request);
             request.Status = RequestStatus.Cancelled;
             await db.SaveChangesAsync(cancellationToken);
             return new(AccessResult.Allowed, request);

@@ -52,6 +52,11 @@ namespace PurchaseRequest.Data.Migrations
                     b.Property<int?>("ManagerId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Roles")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EntraObjectId")
@@ -88,11 +93,15 @@ namespace PurchaseRequest.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Decision")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
                     b.Property<int>("RequestId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Round")
                         .HasColumnType("int");
 
                     b.Property<int>("Sequence")
@@ -109,7 +118,7 @@ namespace PurchaseRequest.Data.Migrations
 
                     b.HasIndex("ApproverId", "Decision");
 
-                    b.HasIndex("RequestId", "Sequence");
+                    b.HasIndex("RequestId", "Round", "Sequence");
 
                     b.ToTable("ApprovalSteps");
                 });
@@ -229,6 +238,39 @@ namespace PurchaseRequest.Data.Migrations
 
                             t.HasCheckConstraint("CK_LineItems_UnitPrice", "[UnitPrice] >= 0.01");
                         });
+                });
+
+            modelBuilder.Entity("PurchaseRequest.Data.OutboxMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("To")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("OutboxMessages");
                 });
 
             modelBuilder.Entity("PurchaseRequest.Data.Request", b =>

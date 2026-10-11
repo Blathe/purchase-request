@@ -21,6 +21,7 @@ erDiagram
         string Email
         string Department
         int ManagerId FK
+        string Roles
     }
     Category {
         int Id PK
@@ -54,6 +55,7 @@ erDiagram
     ApprovalStep {
         int Id PK
         int PurchaseRequestId FK
+        int Round
         int Sequence
         string StepType
         int ApproverId FK
@@ -73,6 +75,13 @@ erDiagram
         string Comment
         datetime OccurredAt
     }
+    OutboxMessage {
+        long Id PK
+        string To
+        string Subject
+        string Body
+        datetime CreatedAt
+    }
     Setting {
         string Key PK
         string Value
@@ -91,7 +100,8 @@ A local copy of Entra ID users, refreshed at sign-in.
 | DisplayName | nvarchar(200) | Required |
 | Email | nvarchar(256) | Required |
 | Department | nvarchar(100) | From Entra. Used by the dashboard |
-| ManagerId | int, null | FK to AppUser. From Microsoft Graph (BR-01) |
+| ManagerId | int, null | FK to AppUser. From Microsoft Graph, refreshed at submit (BR-01) |
+| Roles | nvarchar(200) | App roles from the last sign-in, stored as `,Role1,Role2,`. Used to email IT, Finance and Purchasing |
 
 ### Category
 Seeded with Office Supplies, Hardware\*, Software\*, SaaS\*, Furniture, Training, Other (\* = requires IT approval).
@@ -136,11 +146,12 @@ The C# class is `Request` (mapped to the `PurchaseRequests` table) because `Purc
 |---|---|---|
 | Id | int | Primary key |
 | PurchaseRequestId | int | FK |
-| Sequence | int | 1, 2, 3 in chain order |
+| Round | int | 1 for the first submit, +1 on each resubmit (BR-05) |
+| Sequence | int | 1, 2, 3 in chain order within a round |
 | StepType | nvarchar(20) | Manager, IT, Finance |
 | ApproverId | int, null | Set for Manager steps |
-| ApproverRole | nvarchar(50), null | Set for IT and Finance steps (any user in role) |
-| Decision | nvarchar(20) | Pending, Approved, Rejected, Returned, Superseded |
+| ApproverRole | nvarchar(50), null | Set for IT and Finance steps (any user in role), or Admin when there is no manager |
+| Decision | nvarchar(20) | Pending, Approved, Rejected, Returned, Superseded. Concurrency token, so two approvers cannot decide the same step |
 | DecidedById | int, null | FK to AppUser. Who made the decision (needed for role-based steps) |
 | Comment | nvarchar(1000), null | Required for Rejected and Returned |
 | DecidedAt | datetime2, null | UTC |
@@ -157,6 +168,17 @@ Append-only audit trail (NFR-03). `ApplicationDbContext` throws if code tries to
 | FromStatus / ToStatus | nvarchar(20) | Status before and after |
 | Comment | nvarchar(1000), null | |
 | OccurredAt | datetime2 | UTC |
+
+### OutboxMessage
+Emails recorded by the development email sender and shown on the Email outbox page. Replaced by real sending later.
+
+| Column | Type | Rules |
+|---|---|---|
+| Id | bigint | Primary key |
+| To | nvarchar(256) | Recipient address |
+| Subject | nvarchar(300) | |
+| Body | nvarchar(4000) | Plain text with a link to the request |
+| CreatedAt | datetime2 | UTC |
 
 ### Setting
 | Key | Example value | Used by |
