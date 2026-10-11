@@ -8,7 +8,7 @@ An internal web app where employees submit purchase requests. Each request is ro
 - Fluent UI Blazor 5 (Microsoft Fluent 2 design), light and dark mode
 - Microsoft Entra ID sign-in (Microsoft.Identity.Web)
 - Entity Framework Core on SQL Server
-- Hosted on Azure App Service
+- Hosting: Azure App Service (planned)
 
 ## Documentation
 
