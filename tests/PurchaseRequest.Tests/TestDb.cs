@@ -68,12 +68,27 @@ namespace PurchaseRequest.Tests
 
         public ApprovalService CreateApprovalService()
         {
-            var notifications = new NotificationService(this, Email, new ConfigurationBuilder().Build(), NullLogger<NotificationService>.Instance);
-            return new ApprovalService(this, Directory, notifications, TimeProvider.System, NullLogger<ApprovalService>.Instance);
+            return new ApprovalService(this, Directory, CreateNotificationService(), TimeProvider.System, NullLogger<ApprovalService>.Instance);
         }
+
+        private NotificationService CreateNotificationService() =>
+            new(this, Email, new ConfigurationBuilder().Build(), NullLogger<NotificationService>.Instance);
+
+        public PurchasingService CreatePurchasingService() =>
+            new(this, CreateNotificationService(), TimeProvider.System);
+
+        public DashboardService CreateDashboardService() =>
+            new(this, CreateApprovalService(), TimeProvider.System);
+
+        public SettingsService CreateSettingsService() =>
+            new(this, NullLogger<SettingsService>.Instance);
 
         public static CurrentUser User(int id) =>
             new(id, $"User {id}", (RolesByUser.GetValueOrDefault(id) ?? []).ToHashSet());
+
+        // A user with roles other than their test defaults, such as Admin.
+        public static CurrentUser UserWithRoles(int id, params string[] roles) =>
+            new(id, $"User {id}", roles.ToHashSet());
 
         public static string EmailOf(int id) => $"user{id}@example.com";
 

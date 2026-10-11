@@ -1,0 +1,145 @@
+@page "/admin/settings"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@inject CurrentUserService CurrentUserService
+@inject SettingsService SettingsService
+
+<PageTitle>Settings</PageTitle>
+
+<h1>Settings</h1>
+<p class="text-muted">Changes apply to requests submitted from now on. Requests already submitted keep the rules they were submitted under.</p>
+
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+@if (successMessage is not null)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+
+@if (categories is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <h2 class="h5 mt-4">Finance approval threshold</h2>
+    <p>Requests with a total <strong>over</strong> this amount need Finance approval.</p>
+    <div class="row g-2 align-items-center mb-4" style="max-width: 28rem">
+        <div class="col">
+            <label for="threshold" class="visually-hidden">Threshold in US dollars</label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input id="threshold" type="number" min="0.01" step="0.01" class="form-control" @bind="threshold" />
+            </div>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" disabled="@working" @onclick="SaveThresholdAsync">Save threshold</button>
+        </div>
+    </div>
+
+    <h2 class="h5">Categories</h2>
+    <table class="table align-middle" style="max-width: 40rem">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th class="text-center">Requires IT approval</th>
+                <th class="text-center">Active</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var category in categories)
+            {
+                <tr class="@(category.IsActive ? "" : "text-muted")">
+                    <td>@category.Name</td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input" aria-label="@category.Name requires IT approval"
+                               checked="@category.RequiresItApproval" disabled="@working"
+                               @onchange="e => SaveCategoryAsync(category, (bool)e.Value!, category.IsActive)" />
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input" aria-label="@category.Name is active"
+                               checked="@category.IsActive" disabled="@working"
+                               @onchange="e => SaveCategoryAsync(category, category.RequiresItApproval, (bool)e.Value!)" />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p class="text-muted small">Inactive categories are hidden from the request form. Existing requests keep them.</p>
+
+    <h3 class="h6 mt-4">Add a category</h3>
+    <div class="row g-2 align-items-center" style="max-width: 40rem">
+        <div class="col">
+            <label for="new-category" class="visually-hidden">Category name</label>
+            <input id="new-category" class="form-control" maxlength="100" placeholder="Name" @bind="newName" />
+        </div>
+        <div class="col-auto form-check ms-2">
+            <input id="new-requires-it" type="checkbox" class="form-check-input" @bind="newRequiresIt" />
+            <label for="new-requires-it" class="form-check-label">Requires IT approval</label>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-outline-primary" disabled="@working" @onclick="AddCategoryAsync">Add</button>
+        </div>
+    </div>
+}
+
+@code {
+    private CurrentUser user = null!;
+    private List<Category>? categories;
+    private decimal threshold;
+    private string? newName;
+    private bool newRequiresIt;
+    private bool working;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await CurrentUserService.GetAsync();
+        threshold = await SettingsService.GetFinanceThresholdAsync();
+        categories = await SettingsService.GetCategoriesAsync();
+    }
+
+    private Task SaveThresholdAsync() => RunAsync(async () =>
+    {
+        await SettingsService.SetFinanceThresholdAsync(user, threshold);
+        successMessage = $"Finance threshold set to {Format.Money(threshold)}.";
+    });
+
+    private Task SaveCategoryAsync(Category category, bool requiresItApproval, bool isActive) => RunAsync(async () =>
+    {
+        await SettingsService.UpdateCategoryAsync(user, category.Id, requiresItApproval, isActive);
+        successMessage = $"Saved {category.Name}.";
+    });
+
+    private Task AddCategoryAsync() => RunAsync(async () =>
+    {
+        var added = await SettingsService.AddCategoryAsync(user, newName ?? "", newRequiresIt);
+        newName = null;
+        newRequiresIt = false;
+        successMessage = $"Added {added.Name}.";
+    });
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        working = true;
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            await action();
+        }
+        catch (Exception ex) when (ex is ValidationException or InvalidOperationException)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            categories = await SettingsService.GetCategoriesAsync();
+            working = false;
+        }
+    }
+}

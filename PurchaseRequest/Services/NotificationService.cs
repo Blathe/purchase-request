@@ -10,10 +10,12 @@ namespace PurchaseRequest.Services
         StepApproved,
         Approved,
         Rejected,
-        Returned
+        Returned,
+        Ordered,
+        Received
     }
 
-    // FR-08: emails approvers when a step is waiting on them and the requester on every decision.
+    // FR-08, FR-11: emails approvers when a step is waiting on them and the requester on every decision and delivery update.
     // Failures are logged, never thrown: a lost email must not undo an approval.
     public class NotificationService(
         IDbContextFactory<ApplicationDbContext> dbFactory,
@@ -72,6 +74,17 @@ namespace PurchaseRequest.Services
                     case NotificationEvent.Returned:
                         await SendAsync(request.Requester.Email, $"Returned for changes: {request.Number}",
                             $"{summary}{commentLine}\n\nEdit and resubmit it here: {link}", cancellationToken);
+                        break;
+
+                    // FR-11
+                    case NotificationEvent.Ordered:
+                        await SendAsync(request.Requester.Email, $"Ordered: {request.Number}",
+                            $"{summary}\n\nPurchasing has placed the order.{commentLine}\n\n{link}", cancellationToken);
+                        break;
+
+                    case NotificationEvent.Received:
+                        await SendAsync(request.Requester.Email, $"Received: {request.Number}",
+                            $"{summary}\n\nYour order has arrived.{commentLine}\n\n{link}", cancellationToken);
                         break;
                 }
             }

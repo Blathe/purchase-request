@@ -4,6 +4,7 @@
 @inject CurrentUserService CurrentUserService
 @inject RequestService RequestService
 @inject ApprovalService ApprovalService
+@inject PurchasingService PurchasingService
 
 <PageTitle>@(request?.Number ?? "Request")</PageTitle>
 
@@ -67,6 +68,21 @@ else
                     <button class="btn btn-outline-secondary" disabled="@working" @onclick="() => DecideAsync(Decision.Returned)">Return for changes</button>
                     <button class="btn btn-outline-danger" disabled="@working" @onclick="() => DecideAsync(Decision.Rejected)">Reject</button>
                 </div>
+            </div>
+        </div>
+    }
+
+    @if (PurchasingService.CanMarkOrdered(request, user) || PurchasingService.CanMarkReceived(request, user))
+    {
+        var ordering = request.Status == RequestStatus.Approved;
+        <div class="card border-info mb-4">
+            <div class="card-body">
+                <h2 class="h5 card-title">Purchasing</h2>
+                <label for="purchasing-comment" class="form-label">Comment <span class="text-muted">(optional, for example a PO number or tracking link)</span></label>
+                <textarea id="purchasing-comment" class="form-control mb-3" rows="2" @bind="purchasingComment"></textarea>
+                <button class="btn btn-primary" disabled="@working" @onclick="() => MarkAsync(ordering)">
+                    @(ordering ? "Mark ordered" : "Mark received")
+                </button>
             </div>
         </div>
     }
@@ -186,6 +202,7 @@ else
     private bool confirmingCancel;
     private bool working;
     private string? decisionComment;
+    private string? purchasingComment;
     private string? errorMessage;
     private string? successMessage;
 
@@ -224,6 +241,20 @@ else
             Decision.Returned => "Returned to the requester for changes.",
             _ => "Rejected."
         };
+    });
+
+    private Task MarkAsync(bool ordering) => RunAsync(async () =>
+    {
+        if (ordering)
+        {
+            await PurchasingService.MarkOrderedAsync(Id, user, purchasingComment);
+        }
+        else
+        {
+            await PurchasingService.MarkReceivedAsync(Id, user, purchasingComment);
+        }
+        purchasingComment = null;
+        successMessage = ordering ? "Marked ordered. The requester has been notified." : "Marked received. The requester has been notified.";
     });
 
     private async Task RunAsync(Func<Task> action)

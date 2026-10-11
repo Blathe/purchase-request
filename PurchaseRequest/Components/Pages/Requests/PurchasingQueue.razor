@@ -1,0 +1,55 @@
+@page "/purchasing"
+@attribute [Authorize(Roles = AppRoles.Purchasing)]
+@inject PurchasingService PurchasingService
+
+<PageTitle>Purchasing</PageTitle>
+
+<h1>Purchasing</h1>
+
+@if (requests is null)
+{
+    <p>Loading…</p>
+}
+else if (requests.Count == 0)
+{
+    <p>No approved requests are waiting to be ordered or received.</p>
+}
+else
+{
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Number</th>
+                <th>Requester</th>
+                <th>Vendor</th>
+                <th>Category</th>
+                <th class="text-end">Total</th>
+                <th>Needed by</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var request in requests)
+            {
+                <tr>
+                    <td><a href="requests/@request.Id">@request.Number</a></td>
+                    <td>@request.Requester.DisplayName</td>
+                    <td>@request.Vendor</td>
+                    <td>@request.Category.Name</td>
+                    <td class="text-end">@Format.Money(request.Total)</td>
+                    <td>@(request.NeededBy is { } neededBy ? Format.Date(neededBy) : "—")</td>
+                    <td><StatusBadge Status="request.Status" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Request>? requests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        requests = await PurchasingService.GetQueueAsync();
+    }
+}
