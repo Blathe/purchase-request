@@ -9,6 +9,9 @@ namespace PurchaseRequest.Data
         public string Email { get; set; } = "";
         public string? Department { get; set; }
 
+        // App roles from the last sign-in, stored as ",Role1,Role2," so a role can be matched with Contains.
+        public string Roles { get; set; } = ",";
+
         public int? ManagerId { get; set; }
         public AppUser? Manager { get; set; }
     }

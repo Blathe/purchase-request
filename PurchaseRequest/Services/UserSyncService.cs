@@ -24,6 +24,7 @@ namespace PurchaseRequest.Services
             user.Email = principal.FindFirstValue("preferred_username")
                 ?? principal.FindFirstValue(ClaimTypes.Email)
                 ?? user.Email;
+            user.Roles = AppRoles.ToStored(AppRoles.All.Where(principal.IsInRole));
 
             await db.SaveChangesAsync(cancellationToken);
             return user;

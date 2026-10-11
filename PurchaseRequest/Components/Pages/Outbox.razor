@@ -1,0 +1,64 @@
+@page "/outbox"
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject CurrentUserService CurrentUserService
+@inject IWebHostEnvironment Environment
+
+<PageTitle>Email outbox</PageTitle>
+
+@if (!allowed)
+{
+    <h1>Access denied</h1>
+    <p>The outbox is available to Admins, or to everyone while running in Development.</p>
+}
+else
+{
+    <h1>Email outbox</h1>
+    <p class="text-muted">Emails are logged here instead of being sent. Newest first, last 100.</p>
+
+    @if (messages is null)
+    {
+        <p>Loading…</p>
+    }
+    else if (messages.Count == 0)
+    {
+        <p>No emails yet.</p>
+    }
+    else
+    {
+        @foreach (var message in messages)
+        {
+            <div class="card mb-2">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between gap-2">
+                        <strong>@message.Subject</strong>
+                        <span class="text-muted small">@Format.DateAndTime(message.CreatedAt)</span>
+                    </div>
+                    <div class="small text-muted mb-2">To: @message.To</div>
+                    <div style="white-space: pre-line">@message.Body</div>
+                </div>
+            </div>
+        }
+    }
+}
+
+@code {
+    private List<OutboxMessage>? messages;
+    private bool allowed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await CurrentUserService.GetAsync();
+        allowed = Environment.IsDevelopment() || user.IsInRole(AppRoles.Admin);
+        if (!allowed)
+        {
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        messages = await db.OutboxMessages.AsNoTracking()
+            .OrderByDescending(m => m.Id)
+            .Take(100)
+            .ToListAsync();
+    }
+}

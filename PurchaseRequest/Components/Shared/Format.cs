@@ -15,6 +15,23 @@ namespace PurchaseRequest.Components.Shared
 
         public static string Date(DateOnly date) => date.ToString("MMM d, yyyy", UsCulture);
 
+        public static string Step(StepType stepType) => stepType switch
+        {
+            StepType.Manager => "Manager",
+            StepType.IT => "IT",
+            StepType.Finance => "Finance",
+            _ => stepType.ToString()
+        };
+
+        // Who a step is waiting on: a named manager, or everyone in a role.
+        public static string Approver(ApprovalStep step) => step.Approver?.DisplayName ?? step.ApproverRole switch
+        {
+            "ITApprover" => "IT approvers",
+            "FinanceApprover" => "Finance approvers",
+            "Admin" => "Admin (no manager in Entra ID)",
+            var role => role ?? "—"
+        };
+
         public static string Status(RequestStatus status) => status switch
         {
             RequestStatus.PendingApproval => "Pending approval",

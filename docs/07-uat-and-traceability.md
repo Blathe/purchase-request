@@ -34,13 +34,13 @@ Tests marked ✅ exist in `tests/PurchaseRequest.Tests`. Unmarked names are plan
 | FR-02 | | US-02 | UAT-02 | `RequestServiceTests.Save_ValidDraft_SetsStatusDraft` ✅ |
 | FR-03 | | US-02 | UAT-02 | `RequestServiceTests.Total_SumsLineItems` ✅ |
 | FR-04 | | US-02 | UAT-02 | `RequestServiceTests.SaveDraft_AssignsNumber` ✅ |
-| FR-05 | BR-01 | US-03 | UAT-03 | `ApprovalChainTests.Build_FirstStepIsManager` |
-| FR-05 | BR-02 | US-03 | UAT-05, UAT-06 | `ApprovalChainTests.Build_OverThreshold_AddsFinance` |
-| FR-05 | BR-03 | US-03 | UAT-04, UAT-06 | `ApprovalChainTests.Build_ItCategory_AddsItStep` |
-| FR-05 | BR-04 | US-03 | UAT-12 | `ApprovalChainTests.Build_ApproverIsRequester_Escalates` |
-| FR-06 | | US-04 | UAT-07 | `ApprovalQueueTests.Queue_ShowsOnlyAssignedRequests` |
-| FR-07 | BR-05 | US-05 | UAT-08, UAT-09 | `ApprovalServiceTests.Return_RequiresComment_ResetsToDraft` |
-| FR-08 | | US-03, US-05 | UAT-03, UAT-10 | `NotificationTests.Submit_EmailsFirstApprover` |
+| FR-05 | BR-01 | US-03 | UAT-03 | `ApprovalChainTests.Build_FirstStepIsManager` ✅, `ApprovalServiceTests.Submit_UsesCurrentManagerFromDirectory` ✅ |
+| FR-05 | BR-02 | US-03 | UAT-05, UAT-06 | `ApprovalChainTests.Build_OverThreshold_AddsFinance` ✅, `ApprovalChainTests.Build_AtThreshold_NoFinance` ✅ |
+| FR-05 | BR-03 | US-03 | UAT-04, UAT-06 | `ApprovalChainTests.Build_ItCategory_AddsItStep` ✅ |
+| FR-05 | BR-04 | US-03 | UAT-12 | `ApprovalServiceTests.Decide_RequesterHoldsStepRole_CannotApproveOwnRequest` ✅ |
+| FR-06 | | US-04 | UAT-07 | `ApprovalServiceTests.Queue_ShowsOnlyAssignedRequests` ✅ |
+| FR-07 | BR-05 | US-05 | UAT-08, UAT-09 | `ApprovalServiceTests.Return_RequiresComment_ResetsToDraft` ✅, `ApprovalServiceTests.Resubmit_AfterReturn_StartsNewRound` ✅ |
+| FR-08 | | US-03, US-05 | UAT-03, UAT-10 | `ApprovalServiceTests.Submit_EmailsFirstApprover` ✅, `ApprovalServiceTests.Approve_AllSteps_SetsApprovedAndEmailsPurchasing` ✅ |
 | FR-09 | | US-06 | UAT-15 | `RequestServiceTests.List_ShowsOnlyOwnRequests` ✅ |
 | FR-10 | | US-05, US-06 | UAT-15 | `RequestServiceTests.SaveDraft_WritesCreatedHistory` ✅, `HistoryTests.EveryTransition_WritesHistoryRow` |
 | FR-11 | | US-07 | UAT-11 | `PurchasingTests.MarkOrdered_OnlyWhenApproved` |

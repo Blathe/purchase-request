@@ -137,7 +137,7 @@ namespace PurchaseRequest.Tests
         {
             var request = await service.CreateDraftAsync(TestDb.Riley, TestDb.ValidModel());
 
-            var result = await service.GetForViewAsync(request.Id, TestDb.Morgan);
+            var result = await service.GetForViewAsync(request.Id, TestDb.User(TestDb.Morgan));
 
             Assert.Equal(AccessResult.Denied, result.Access);
             Assert.Null(result.Request);
@@ -146,7 +146,7 @@ namespace PurchaseRequest.Tests
         [Fact]
         public async Task GetForView_MissingRequest_IsNotFound()
         {
-            var result = await service.GetForViewAsync(999, TestDb.Riley);
+            var result = await service.GetForViewAsync(999, TestDb.User(TestDb.Riley));
 
             Assert.Equal(AccessResult.NotFound, result.Access);
         }

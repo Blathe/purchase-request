@@ -5,12 +5,12 @@ using PurchaseRequest.Data;
 
 namespace PurchaseRequest.Services
 {
-    // Resolves the signed-in Entra ID user to their local AppUser row.
+    // Resolves the signed-in Entra ID user to their local AppUser row and app roles.
     public class CurrentUserService(AuthenticationStateProvider authenticationStateProvider, IDbContextFactory<ApplicationDbContext> dbFactory)
     {
-        private AppUser? user;
+        private CurrentUser? user;
 
-        public async Task<AppUser> GetAsync(CancellationToken cancellationToken = default)
+        public async Task<CurrentUser> GetAsync(CancellationToken cancellationToken = default)
         {
             if (user is not null)
             {
@@ -22,8 +22,11 @@ namespace PurchaseRequest.Services
                 ?? throw new InvalidOperationException("The signed-in user has no object ID (oid) claim."));
 
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
-            user = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.EntraObjectId == objectId, cancellationToken)
+            var appUser = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.EntraObjectId == objectId, cancellationToken)
                 ?? throw new InvalidOperationException("The signed-in user has no AppUser row. Sign out and sign in again.");
+
+            var roles = AppRoles.All.Where(state.User.IsInRole).ToHashSet();
+            user = new CurrentUser(appUser.Id, appUser.DisplayName, roles);
             return user;
         }
     }

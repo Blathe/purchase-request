@@ -1,0 +1,58 @@
+@page "/approvals"
+@inject CurrentUserService CurrentUserService
+@inject ApprovalService ApprovalService
+@inject TimeProvider Clock
+
+<PageTitle>My approvals</PageTitle>
+
+<h1>My approvals</h1>
+
+@if (items is null)
+{
+    <p>Loading…</p>
+}
+else if (items.Count == 0)
+{
+    <p>Nothing is waiting on you.</p>
+}
+else
+{
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Number</th>
+                <th>Requester</th>
+                <th>Vendor</th>
+                <th class="text-end">Total</th>
+                <th>Step</th>
+                <th class="text-end">Days waiting</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in items)
+            {
+                <tr>
+                    <td><a href="requests/@item.RequestId">@item.Number</a></td>
+                    <td>@item.Requester</td>
+                    <td>@item.Vendor</td>
+                    <td class="text-end">@Format.Money(item.Total)</td>
+                    <td>@Format.Step(item.StepType)</td>
+                    <td class="text-end">@DaysWaiting(item)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ApprovalQueueItem>? items;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await CurrentUserService.GetAsync();
+        items = await ApprovalService.GetQueueAsync(user);
+    }
+
+    private int DaysWaiting(ApprovalQueueItem item) =>
+        Math.Max(0, (int)(Clock.GetUtcNow().UtcDateTime - item.WaitingSince).TotalDays);
+}

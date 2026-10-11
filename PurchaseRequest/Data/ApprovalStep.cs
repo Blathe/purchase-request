@@ -4,6 +4,9 @@ namespace PurchaseRequest.Data
     {
         public int Id { get; set; }
         public int RequestId { get; set; }
+
+        // Each submit creates a new round (BR-05). Earlier rounds are kept for the audit trail.
+        public int Round { get; set; } = 1;
         public int Sequence { get; set; }
         public StepType StepType { get; set; }
 

@@ -3,7 +3,7 @@
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @implements IDisposable
-@inject CurrentUserService CurrentUser
+@inject CurrentUserService CurrentUserService
 @inject RequestService RequestService
 @inject NavigationManager Navigation
 
@@ -137,18 +137,20 @@ else
     private bool editable = true;
     private bool saving;
     private string? errorMessage;
-    private int userId;
+    private CurrentUser user = null!;
+    private int userId => user.Id;
 
     protected override async Task OnInitializedAsync()
     {
-        userId = (await CurrentUser.GetAsync()).Id;
+        user = await CurrentUserService.GetAsync();
         categories = await RequestService.GetActiveCategoriesAsync();
 
         if (Id is int id)
         {
-            var result = await RequestService.GetForViewAsync(id, userId);
-            access = result.Access;
-            if (result.Request is not { } request)
+            var result = await RequestService.GetForViewAsync(id, user);
+            // Only the requester edits a request, even if others can view it.
+            access = result.Request is { } found && found.RequesterId != user.Id ? AccessResult.Denied : result.Access;
+            if (access != AccessResult.Allowed || result.Request is not { } request)
             {
                 return;
             }
