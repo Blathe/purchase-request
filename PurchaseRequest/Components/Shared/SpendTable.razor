@@ -1,11 +1,11 @@
-<h2 class="h5">@Title</h2>
-<table class="table align-middle">
+<h2 class="section-title">@Title</h2>
+<table class="data-table">
     <thead>
         <tr>
             <th>@LabelHeader</th>
-            <th class="w-50"><span class="visually-hidden">Share of total</span></th>
-            <th class="text-end">Requests</th>
-            <th class="text-end">Spend</th>
+            <th class="spend-bar-column"><span class="visually-hidden">Share of the largest</span></th>
+            <th class="align-end">Requests</th>
+            <th class="align-end">Spend</th>
         </tr>
     </thead>
     <tbody>
@@ -14,12 +14,12 @@
             <tr>
                 <td>@row.Label</td>
                 <td>
-                    <div class="progress" role="presentation" style="height: 0.75rem">
-                        <div class="progress-bar" style="width: @Percent(row)%"></div>
+                    <div class="spend-bar" aria-hidden="true">
+                        <div class="spend-bar-fill" style="width: @Percent(row)%"></div>
                     </div>
                 </td>
-                <td class="text-end">@row.Count</td>
-                <td class="text-end">@Format.Money(row.Total)</td>
+                <td class="align-end">@row.Count</td>
+                <td class="align-end">@Format.Money(row.Total)</td>
             </tr>
         }
     </tbody>

@@ -1,0 +1,29 @@
+<div class="empty-state">
+    <FluentIcon Value="@(Icon ?? new Icons.Regular.Size24.DocumentBulletList())" Width="48px" Color="Color.Custom" CustomColor="var(--colorNeutralForeground3)" />
+    <h2 class="empty-state-title">@Title</h2>
+    @if (Message is not null)
+    {
+        <p class="empty-state-message">@Message</p>
+    }
+    @if (ActionHref is not null)
+    {
+        <FluentAnchorButton Href="@ActionHref" Appearance="ButtonAppearance.Primary">@ActionText</FluentAnchorButton>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public Icon? Icon { get; set; }
+
+    [Parameter]
+    public string? ActionHref { get; set; }
+
+    [Parameter]
+    public string? ActionText { get; set; }
+}

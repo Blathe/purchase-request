@@ -5,47 +5,66 @@
 
 <PageTitle>My approvals</PageTitle>
 
-<h1>My approvals</h1>
+<PageHeader Title="My approvals" Subtitle="Requests waiting on your decision, oldest first." />
 
 @if (items is null)
 {
-    <p>Loading…</p>
+    <FluentProgressBar />
 }
 else if (items.Count == 0)
 {
-    <p>Nothing is waiting on you.</p>
+    <EmptyState Title="You're all caught up" Message="Nothing is waiting on your approval."
+                Icon="@(new Icons.Regular.Size24.CheckmarkCircle())" />
 }
 else
 {
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th>Number</th>
-                <th>Requester</th>
-                <th>Vendor</th>
-                <th class="text-end">Total</th>
-                <th>Step</th>
-                <th class="text-end">Days waiting</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in items)
-            {
-                <tr>
-                    <td><a href="requests/@item.RequestId">@item.Number</a></td>
-                    <td>@item.Requester</td>
-                    <td>@item.Vendor</td>
-                    <td class="text-end">@Format.Money(item.Total)</td>
-                    <td>@Format.Step(item.StepType)</td>
-                    <td class="text-end">@DaysWaiting(item)</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <ListToolbar @bind-Search="search" SearchPlaceholder="Search by number, vendor or requester" Count="@Filtered.Count()" />
+
+    <FluentDataGrid Items="@Filtered" TGridItem="ApprovalQueueItem" ItemKey="@(i => i.RequestId)" ShowHover="true"
+                    GridTemplateColumns="130px 1fr 1.5fr 120px 100px 130px">
+        <EmptyContent>No requests match your search.</EmptyContent>
+        <ChildContent>
+            <TemplateColumn Title="Number" SortBy="@byNumber">
+                <a href="requests/@context.RequestId">@context.Number</a>
+            </TemplateColumn>
+            <PropertyColumn Title="Requester" Property="@(i => i.Requester)" Sortable="true" />
+            <PropertyColumn Title="Vendor" Property="@(i => i.Vendor)" Sortable="true" />
+            <TemplateColumn Title="Total" SortBy="@byTotal" Align="DataGridCellAlignment.End">
+                @Format.Money(context.Total)
+            </TemplateColumn>
+            <TemplateColumn Title="Step" SortBy="@byStep">
+                @Format.Step(context.StepType)
+            </TemplateColumn>
+            <TemplateColumn Title="Days waiting" SortBy="@byWaiting" IsDefaultSortColumn="true" Align="DataGridCellAlignment.End">
+                @{ var days = DaysWaiting(context); }
+                @if (days >= OverdueDays)
+                {
+                    <FluentBadge Appearance="BadgeAppearance.Tint" Color="BadgeColor.Danger">@days</FluentBadge>
+                }
+                else
+                {
+                    @days
+                }
+            </TemplateColumn>
+        </ChildContent>
+    </FluentDataGrid>
 }
 
 @code {
+    // SM-01 targets final approval within 2 business days, so flag any step that has waited 2 days or more.
+    private const int OverdueDays = 2;
+
+    private static readonly GridSort<ApprovalQueueItem> byNumber = GridSort<ApprovalQueueItem>.ByAscending(i => i.Number);
+    private static readonly GridSort<ApprovalQueueItem> byTotal = GridSort<ApprovalQueueItem>.ByAscending(i => i.Total);
+    private static readonly GridSort<ApprovalQueueItem> byStep = GridSort<ApprovalQueueItem>.ByAscending(i => i.StepType);
+    private static readonly GridSort<ApprovalQueueItem> byWaiting = GridSort<ApprovalQueueItem>.ByAscending(i => i.WaitingSince);
+
     private List<ApprovalQueueItem>? items;
+    private string? search;
+
+    private IQueryable<ApprovalQueueItem> Filtered => (items ?? [])
+        .Where(i => ListToolbar.Matches(search, i.Number, i.Vendor) || (search is not null && i.Requester.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)))
+        .AsQueryable();
 
     protected override async Task OnInitializedAsync()
     {

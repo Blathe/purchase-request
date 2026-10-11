@@ -8,43 +8,50 @@
 
 @if (!allowed)
 {
-    <h1>Access denied</h1>
-    <p>The outbox is available to Admins, or to everyone while running in Development.</p>
+    <PageHeader Title="Access denied" Subtitle="The outbox is available to Admins, or to everyone while running in Development." />
 }
 else
 {
-    <h1>Email outbox</h1>
-    <p class="text-muted">Emails are logged here instead of being sent. Newest first, last 100.</p>
+    <PageHeader Title="Email outbox" Subtitle="Emails are logged here instead of being sent. Newest first, last 100." />
 
     @if (messages is null)
     {
-        <p>Loading…</p>
+        <FluentProgressBar />
     }
     else if (messages.Count == 0)
     {
-        <p>No emails yet.</p>
+        <EmptyState Title="No emails yet" Message="Submitting or deciding on a request sends emails, which appear here."
+                    Icon="@(new Icons.Regular.Size24.Mail())" />
     }
     else
     {
-        @foreach (var message in messages)
-        {
-            <div class="card mb-2">
-                <div class="card-body">
-                    <div class="d-flex flex-wrap justify-content-between gap-2">
+        <ListToolbar @bind-Search="search" SearchPlaceholder="Search by recipient or subject" />
+
+        <div class="outbox-list">
+            @foreach (var message in Filtered)
+            {
+                <FluentCard>
+                    <div class="outbox-heading">
                         <strong>@message.Subject</strong>
-                        <span class="text-muted small">@Format.DateAndTime(message.CreatedAt)</span>
+                        <span class="text-subtle">@Format.DateAndTime(message.CreatedAt)</span>
                     </div>
-                    <div class="small text-muted mb-2">To: @message.To</div>
-                    <div style="white-space: pre-line">@message.Body</div>
-                </div>
-            </div>
-        }
+                    <div class="text-subtle">To: @message.To</div>
+                    <div class="outbox-body">@message.Body</div>
+                </FluentCard>
+            }
+        </div>
     }
 }
 
 @code {
     private List<OutboxMessage>? messages;
     private bool allowed;
+    private string? search;
+
+    private IEnumerable<OutboxMessage> Filtered => string.IsNullOrWhiteSpace(search)
+        ? messages ?? []
+        : (messages ?? []).Where(m => m.To.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)
+            || m.Subject.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
 
     protected override async Task OnInitializedAsync()
     {

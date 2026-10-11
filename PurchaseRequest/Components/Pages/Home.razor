@@ -2,11 +2,28 @@
 
 <PageTitle>Purchase Requests</PageTitle>
 
-<h1>Purchase Requests</h1>
+<PageHeader Title="Purchase Requests" Subtitle="Submit purchase requests and track them through approval and ordering." />
 
-<p>Submit purchase requests and track them through approval and ordering.</p>
-
-<div class="d-flex gap-2">
-    <a class="btn btn-primary" href="requests/new">New request</a>
-    <a class="btn btn-outline-secondary" href="requests">My requests</a>
+<div class="home-grid">
+    <a href="requests/new" class="kpi-link">
+        <FluentCard Class="home-card">
+            <FluentIcon Value="@(new Icons.Regular.Size24.AddSquare())" />
+            <h2 class="section-title">New request</h2>
+            <p class="text-subtle">Add what you need to buy and send it for approval.</p>
+        </FluentCard>
+    </a>
+    <a href="requests" class="kpi-link">
+        <FluentCard Class="home-card">
+            <FluentIcon Value="@(new Icons.Regular.Size24.DocumentBulletList())" />
+            <h2 class="section-title">My requests</h2>
+            <p class="text-subtle">See where each of your requests is and who it is waiting on.</p>
+        </FluentCard>
+    </a>
+    <a href="approvals" class="kpi-link">
+        <FluentCard Class="home-card">
+            <FluentIcon Value="@(new Icons.Regular.Size24.TaskListSquareLtr())" />
+            <h2 class="section-title">My approvals</h2>
+            <p class="text-subtle">Approve, return or reject requests waiting on you.</p>
+        </FluentCard>
+    </a>
 </div>

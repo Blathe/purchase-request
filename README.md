@@ -4,7 +4,8 @@ An internal web app where employees submit purchase requests. Each request is ro
 
 ## Tech stack
 
-- .NET 10, Blazor Web App
+- .NET 10, Blazor Web App (Interactive Server)
+- Fluent UI Blazor 5 (Microsoft Fluent 2 design), light and dark mode
 - Microsoft Entra ID sign-in (Microsoft.Identity.Web)
 - Entity Framework Core on SQL Server
 - Hosted on Azure App Service

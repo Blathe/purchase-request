@@ -1,0 +1,59 @@
+<li class="timeline-step @StateClass">
+    <span class="timeline-marker">
+        <FluentIcon Value="@MarkerIcon" Color="Color.Custom" CustomColor="@MarkerColor" />
+    </span>
+    <div class="timeline-content">
+        <div class="timeline-heading">
+            <strong>@Format.Step(Step.StepType) approval</strong>
+            <span class="text-subtle">@StateText</span>
+        </div>
+        <div class="text-subtle">
+            @if (Step.DecidedBy is { } decidedBy)
+            {
+                @($"{decidedBy.DisplayName}, {Format.DateAndTime(Step.DecidedAt!.Value)}")
+            }
+            else
+            {
+                @Format.Approver(Step)
+            }
+        </div>
+        @if (Step.Comment is not null)
+        {
+            <blockquote class="timeline-comment">@Step.Comment</blockquote>
+        }
+    </div>
+</li>
+
+@code {
+    [Parameter, EditorRequired]
+    public ApprovalStep Step { get; set; } = default!;
+
+    [Parameter]
+    public bool IsCurrent { get; set; }
+
+    private string StateText => IsCurrent ? "Waiting" : Step.Decision switch
+    {
+        Decision.Pending => "Not started",
+        Decision.Superseded => "Not needed",
+        var decision => decision.ToString()
+    };
+
+    private string StateClass => IsCurrent ? "is-current" : $"is-{Step.Decision.ToString().ToLowerInvariant()}";
+
+    private Icon MarkerIcon => IsCurrent ? new Icons.Filled.Size20.Clock() : Step.Decision switch
+    {
+        Decision.Approved => new Icons.Filled.Size20.CheckmarkCircle(),
+        Decision.Rejected => new Icons.Filled.Size20.DismissCircle(),
+        Decision.Returned => new Icons.Regular.Size20.ArrowUndo(),
+        Decision.Superseded => new Icons.Regular.Size20.SubtractCircle(),
+        _ => new Icons.Regular.Size20.Circle()
+    };
+
+    private string MarkerColor => IsCurrent ? "var(--colorPaletteMarigoldForeground1)" : Step.Decision switch
+    {
+        Decision.Approved => "var(--colorPaletteGreenForeground1)",
+        Decision.Rejected => "var(--colorPaletteRedForeground1)",
+        Decision.Returned => "var(--colorBrandForeground1)",
+        _ => "var(--colorNeutralForeground3)"
+    };
+}

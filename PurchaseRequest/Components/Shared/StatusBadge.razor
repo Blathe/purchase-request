@@ -1,17 +1,16 @@
-<span class="badge @CssClass">@Format.Status(Status)</span>
+<FluentBadge Appearance="BadgeAppearance.Tint" Color="@Color">@Format.Status(Status)</FluentBadge>
 
 @code {
     [Parameter, EditorRequired]
     public RequestStatus Status { get; set; }
 
-    private string CssClass => Status switch
+    private BadgeColor Color => Status switch
     {
-        RequestStatus.Draft => "text-bg-secondary",
-        RequestStatus.PendingApproval => "text-bg-warning",
-        RequestStatus.Approved => "text-bg-success",
-        RequestStatus.Ordered => "text-bg-info",
-        RequestStatus.Received => "text-bg-primary",
-        RequestStatus.Rejected => "text-bg-danger",
-        _ => "text-bg-light"
+        RequestStatus.PendingApproval => BadgeColor.Warning,
+        RequestStatus.Approved => BadgeColor.Success,
+        RequestStatus.Ordered => BadgeColor.Informative,
+        RequestStatus.Received => BadgeColor.Brand,
+        RequestStatus.Rejected => BadgeColor.Danger,
+        _ => BadgeColor.Subtle
     };
 }

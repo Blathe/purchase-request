@@ -1,110 +1,99 @@
 @implements IDisposable
-
 @inject NavigationManager NavigationManager
+@inject CurrentUserService CurrentUserService
+@inject ApprovalService ApprovalService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Purchase Requests</a>
-    </div>
-</div>
+<FluentNav Width="240px" UseIcons="true">
+    <FluentNavItem Href="" Match="NavLinkMatch.All"
+                   IconRest="@(new Icons.Regular.Size20.Home())" IconActive="@(new Icons.Filled.Size20.Home())">
+        Home
+    </FluentNavItem>
+    <FluentNavItem Href="dashboard"
+                   IconRest="@(new Icons.Regular.Size20.DataBarVertical())" IconActive="@(new Icons.Filled.Size20.DataBarVertical())">
+        Dashboard
+    </FluentNavItem>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <FluentNavSectionHeader Title="Requests" />
+    <FluentNavItem Href="requests/new"
+                   IconRest="@(new Icons.Regular.Size20.AddSquare())" IconActive="@(new Icons.Filled.Size20.AddSquare())">
+        New request
+    </FluentNavItem>
+    <FluentNavItem Href="requests" Match="NavLinkMatch.All"
+                   IconRest="@(new Icons.Regular.Size20.DocumentBulletList())" IconActive="@(new Icons.Filled.Size20.DocumentBulletList())">
+        My requests
+    </FluentNavItem>
+    <FluentNavItem Href="approvals"
+                   IconRest="@(new Icons.Regular.Size20.TaskListSquareLtr())" IconActive="@(new Icons.Filled.Size20.TaskListSquareLtr())">
+        <span class="nav-label-with-count">
+            My approvals
+            <FluentCounterBadge Count="@pendingApprovals" Size="BadgeSize.Small" aria-label="@($"{pendingApprovals} waiting")" />
+        </span>
+    </FluentNavItem>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="requests" Match="NavLinkMatch.All">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> My requests
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="approvals">
-                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> My approvals
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="requests/new">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> New request
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="dashboard">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Dashboard
-            </NavLink>
-        </div>
-
-        <AuthorizeView Roles="@AppRoles.Purchasing">
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="purchasing">
-                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Purchasing
-                </NavLink>
-            </div>
-        </AuthorizeView>
-
-        <AuthorizeView Roles="@AppRoles.Admin">
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="admin/settings">
-                    <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Settings
-                </NavLink>
-            </div>
-        </AuthorizeView>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="outbox">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Email outbox
-            </NavLink>
-        </div>
-
-        <AuthorizeView>
-            <Authorized>
-                <div class="nav-item px-3">
-                    <span class="nav-link">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @(context.User.FindFirst("name")?.Value ?? context.User.Identity?.Name)
-                    </span>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="authentication/logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Sign out
-                        </button>
-                    </form>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="@($"authentication/login?returnUrl={Uri.EscapeDataString(currentUrl ?? "")}")">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Sign in
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
-</div>
+    <AuthorizeView Roles="@($"{AppRoles.Purchasing},{AppRoles.Admin}")">
+        <FluentNavSectionHeader Title="Manage" />
+    </AuthorizeView>
+    <AuthorizeView Roles="@AppRoles.Purchasing">
+        <FluentNavItem Href="purchasing"
+                       IconRest="@(new Icons.Regular.Size20.Cart())" IconActive="@(new Icons.Filled.Size20.Cart())">
+            Purchasing
+        </FluentNavItem>
+    </AuthorizeView>
+    <AuthorizeView Roles="@AppRoles.Admin">
+        <FluentNavItem Href="admin/settings"
+                       IconRest="@(new Icons.Regular.Size20.Settings())" IconActive="@(new Icons.Filled.Size20.Settings())">
+            Settings
+        </FluentNavItem>
+    </AuthorizeView>
+    @if (showOutbox)
+    {
+        <FluentNavItem Href="outbox"
+                       IconRest="@(new Icons.Regular.Size20.Mail())" IconActive="@(new Icons.Filled.Size20.Mail())">
+            Email outbox
+        </FluentNavItem>
+    }
+</FluentNav>
 
 @code {
-    private string? currentUrl;
+    [Inject]
+    private IWebHostEnvironment Environment { get; set; } = default!;
 
-    protected override void OnInitialized()
+    private int pendingApprovals;
+    private bool showOutbox;
+
+    protected override async Task OnInitializedAsync()
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
+        await RefreshAsync();
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    // Recount on every navigation so the badge drops after a decision.
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
-        StateHasChanged();
+        try
+        {
+            await RefreshAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException)
+        {
+            // The circuit closed mid-navigation.
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        // The nav also renders on the anonymous Error and Not found pages.
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        var user = await CurrentUserService.GetAsync();
+        showOutbox = Environment.IsDevelopment() || user.IsInRole(AppRoles.Admin);
+        pendingApprovals = (await ApprovalService.GetQueueAsync(user)).Count;
     }
 
     public void Dispose()
@@ -112,4 +101,3 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-

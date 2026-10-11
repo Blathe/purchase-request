@@ -1,23 +1,60 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject IThemeService ThemeService
+@inject NavigationManager NavigationManager
 
-<div class="page">
-    <div class="sidebar">
+<FluentLayout>
+    <FluentLayoutItem Area="LayoutArea.Header" Class="app-header">
+        <FluentLayoutHamburger IconTitle="Open navigation" />
+        <a href="" class="app-title">
+            <FluentIcon Value="@(new Icons.Regular.Size24.ReceiptCube())" Color="Color.Custom" CustomColor="var(--colorNeutralForegroundOnBrand)" />
+            Purchase Requests
+        </a>
+        <FluentSpacer />
+        <AuthorizeView>
+            <FluentStack HorizontalGap="12px" VerticalAlignment="VerticalAlignment.Center" Width="auto">
+                <FluentAvatar Name="@UserName(context.User)" Size="AvatarSize.Size32" Color="AvatarColor.Colorful" />
+                <span class="app-user-name">@UserName(context.User)</span>
+                <form action="authentication/logout" method="post">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="@NavigationManager.ToBaseRelativePath(NavigationManager.Uri)" />
+                    <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Transparent" Class="app-header-button"
+                                  IconStart="@(new Icons.Regular.Size20.SignOut())">
+                        Sign out
+                    </FluentButton>
+                </form>
+            </FluentStack>
+        </AuthorizeView>
+    </FluentLayoutItem>
+
+    <FluentLayoutItem Area="LayoutArea.Navigation">
         <NavMenu />
-    </div>
+    </FluentLayoutItem>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
+    <FluentLayoutItem Area="LayoutArea.Content">
+        <main class="app-content">
             @Body
-        </article>
-    </main>
-</div>
+        </main>
+    </FluentLayoutItem>
+</FluentLayout>
+
+<FluentProviders />
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && RendererInfo.IsInteractive)
+        {
+            // Light or dark follows the user's operating system setting.
+            await ThemeService.SetThemeAsync(ThemeMode.System);
+        }
+    }
+
+    private static string UserName(System.Security.Claims.ClaimsPrincipal user) =>
+        user.FindFirst("name")?.Value ?? user.Identity?.Name ?? "";
+}

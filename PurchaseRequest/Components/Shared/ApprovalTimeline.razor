@@ -1,0 +1,50 @@
+@* The approval chain as a vertical timeline. The latest round is shown in full; earlier rounds
+   (from returned requests, BR-05) are folded away underneath. *@
+@if (latestRound.Count == 0)
+{
+    <p class="text-subtle">No approval steps yet. They are created when the request is submitted.</p>
+}
+else
+{
+    <ol class="timeline">
+        @foreach (var step in latestRound)
+        {
+            <TimelineStep Step="step" IsCurrent="@(step == CurrentStep)" />
+        }
+    </ol>
+
+    @if (earlierRounds.Count > 0)
+    {
+        <details class="timeline-earlier">
+            <summary>Earlier rounds (@earlierRounds.Count)</summary>
+            @foreach (var round in earlierRounds)
+            {
+                <h3 class="timeline-round-title">Round @round.Key</h3>
+                <ol class="timeline">
+                    @foreach (var step in round)
+                    {
+                        <TimelineStep Step="step" IsCurrent="false" />
+                    }
+                </ol>
+            }
+        </details>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyCollection<ApprovalStep> Steps { get; set; } = [];
+
+    [Parameter]
+    public ApprovalStep? CurrentStep { get; set; }
+
+    private List<ApprovalStep> latestRound = [];
+    private List<IGrouping<int, ApprovalStep>> earlierRounds = [];
+
+    protected override void OnParametersSet()
+    {
+        var rounds = Steps.OrderByDescending(s => s.Round).ThenBy(s => s.Sequence).GroupBy(s => s.Round).ToList();
+        latestRound = rounds.FirstOrDefault()?.ToList() ?? [];
+        earlierRounds = rounds.Skip(1).ToList();
+    }
+}
